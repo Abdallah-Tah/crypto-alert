@@ -14,6 +14,7 @@
         "kornrunner/ccxt": "^1.4",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1",
+        "nativephp/mobile": "^1.1",
         "prism-php/prism": "^0.81.0",
         "tightenco/ziggy": "^2.4"
     },
@@ -83,6 +84,12 @@
             "php-http/discovery": true
         }
     },
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "https://nativephp.composer.sh"
+        }
+    ],
     "minimum-stability": "stable",
     "prefer-stable": true
 }
