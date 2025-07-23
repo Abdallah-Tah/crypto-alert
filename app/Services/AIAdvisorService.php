@@ -39,44 +39,23 @@ class AIAdvisorService
         string $timeHorizon = 'medium'
     ): ?array {
         try {
-            // Define structured schema for investment advice
-            $schema = new ObjectSchema(
-                name: 'investment_advice',
-                description: 'Structured cryptocurrency investment advice',
-                properties: [
-                    new StringSchema('recommendation', 'Investment recommendation (buy, hold, sell)'),
-                    new StringSchema('reasoning', 'Detailed reasoning for the recommendation'),
-                    new StringSchema('risk_assessment', 'Risk assessment for this investment'),
-                    new NumberSchema('confidence_score', 'Confidence score from 0-100'),
-                    new ArraySchema(
-                        'key_factors',
-                        'Array of key factors influencing the recommendation',
-                        new StringSchema('factor', 'A key factor')
-                    ),
-                    new StringSchema('price_target', 'Suggested price target or range'),
-                    new StringSchema('time_frame', 'Expected time frame for this advice'),
-                ],
-                requiredFields: ['recommendation', 'reasoning', 'risk_assessment', 'confidence_score']
-            );
-
             $prompt = $this->buildAdvicePrompt($symbol, $currentPrice, $change24h, $riskLevel, $timeHorizon);
 
-            $response = Prism::structured()
+            // Use text-based response instead of structured for better compatibility
+            $response = Prism::text()
                 ->using(Provider::OpenAI, 'gpt-4o')
-                ->withSchema($schema)
                 ->withPrompt($prompt)
                 ->withProviderOptions([
                     'temperature' => 0.7,
                     'max_tokens' => 800,
                 ])
-                ->asStructured();
+                ->asText();
 
-            if ($response->structured) {
+            if ($response->text) {
                 return [
-                    'structured_advice' => $response->structured,
-                    'suggestion' => $this->formatAdviceText($response->structured),
+                    'suggestion' => $response->text,
                     'model_used' => 'gpt-4o',
-                    'confidence_score' => $response->structured['confidence_score'] ?? null,
+                    'confidence_score' => 85, // Default confidence score
                     'prompt_data' => [
                         'symbol' => $symbol,
                         'price' => $currentPrice,
@@ -140,24 +119,6 @@ class AIAdvisorService
         try {
             $portfolioSummary = $this->buildPortfolioSummary($portfolio);
 
-            // Define structured schema for portfolio analysis
-            $schema = new ObjectSchema(
-                name: 'portfolio_analysis',
-                description: 'Structured portfolio analysis',
-                properties: [
-                    new StringSchema('diversification_score', 'Portfolio diversification assessment'),
-                    new StringSchema('risk_assessment', 'Overall portfolio risk evaluation'),
-                    new StringSchema('rebalancing_suggestion', 'Specific rebalancing recommendations'),
-                    new StringSchema('market_outlook', 'Current market conditions impact'),
-                    new ArraySchema(
-                        'action_items',
-                        'List of actionable recommendations',
-                        new StringSchema('action', 'Specific action to take')
-                    ),
-                ],
-                requiredFields: ['diversification_score', 'risk_assessment', 'rebalancing_suggestion']
-            );
-
             $prompt = "Analyze this crypto portfolio for a {$riskLevel} risk investor:
             {$portfolioSummary}
             
@@ -165,22 +126,23 @@ class AIAdvisorService
             1. Portfolio diversification assessment
             2. Risk evaluation for this user profile
             3. Specific rebalancing suggestions
-            4. Current market outlook impact";
+            4. Current market outlook impact
+            
+            Please provide a comprehensive analysis in a clear, structured format.";
 
-            $response = Prism::structured()
+            // Use text-based response instead of structured for better compatibility
+            $response = Prism::text()
                 ->using(Provider::OpenAI, 'gpt-4o')
-                ->withSchema($schema)
                 ->withPrompt($prompt)
                 ->withProviderOptions([
                     'temperature' => 0.7,
                     'max_tokens' => 600,
                 ])
-                ->asStructured();
+                ->asText();
 
-            if ($response->structured) {
+            if ($response->text) {
                 return [
-                    'structured_analysis' => $response->structured,
-                    'analysis' => $this->formatPortfolioAnalysis($response->structured),
+                    'analysis' => $response->text,
                     'model_used' => 'gpt-4o',
                     'portfolio_data' => $portfolio
                 ];
@@ -258,23 +220,41 @@ class AIAdvisorService
         string $riskLevel,
         string $timeHorizon
     ): string {
-        return "As a professional cryptocurrency investment advisor, analyze {$symbol} with the following data:
+        $currentDate = now()->format('Y-m-d H:i');
+        $changeDirection = $change24h >= 0 ? 'up' : 'down';
+        $changeEmoji = $change24h >= 0 ? '📈' : '📉';
 
-Current Price: \$" . number_format($currentPrice, 0) . "
-24h Change: {$change24h}%
-User Risk Level: {$riskLevel}
-Investment Time Horizon: {$timeHorizon}-term
+        return "As a professional cryptocurrency investment advisor, analyze {$symbol} with the following REAL-TIME MARKET DATA as of {$currentDate} UTC:
 
-Provide a comprehensive investment recommendation including:
-1. Clear buy/hold/sell recommendation
-2. Detailed reasoning based on market analysis
-3. Risk assessment specific to the user's risk profile
-4. Confidence score (0-100)
-5. Key factors influencing your decision
-6. Price target or range
-7. Expected timeframe for this advice
+🔴 LIVE MARKET DATA (Use this current data, ignore any outdated training information):
+• Symbol: {$symbol}
+• Current Live Price: \$" . number_format($currentPrice, 2) . "
+• 24h Price Change: " . number_format($change24h, 2) . "% {$changeEmoji} (trending {$changeDirection})
+• Analysis Date: {$currentDate} UTC
+• User Risk Profile: {$riskLevel}
+• Investment Timeframe: {$timeHorizon}-term
 
-Consider market trends, technical indicators, fundamental analysis, and the user's risk tolerance.";
+⚠️ CRITICAL: The current price is \$" . number_format($currentPrice, 2) . " - base ALL analysis on this CURRENT LIVE PRICE, not any historical data from your training. This reflects today's actual market value.
+
+Provide a comprehensive investment recommendation using this EXACT format:
+
+💡 RECOMMENDATION: [BUY/HOLD/SELL]
+
+📊 CURRENT MARKET ANALYSIS:
+[Analyze based on the LIVE price of \$" . number_format($currentPrice, 2) . " and recent {$changeDirection} trend of {$change24h}%. Consider what this current price level means for the investment opportunity]
+
+⚠️ RISK ASSESSMENT:
+[Evaluate risks at the CURRENT price point of \$" . number_format($currentPrice, 2) . " for a {$riskLevel} risk investor in the {$timeHorizon}-term]
+
+🎯 PRICE TARGET: [Set targets based on current \$" . number_format($currentPrice, 2) . " level]
+⏱️ TIME FRAME: [Timeline for this advice]
+🔍 CONFIDENCE: [Score from 0-100]%
+
+💡 KEY FACTORS:
+• Current price momentum ({$changeDirection} " . abs($change24h) . "% in 24h)
+• [Add 3-4 more current market factors]
+
+Remember: Your analysis must be based on the CURRENT LIVE PRICE of \$" . number_format($currentPrice, 2) . " and current market conditions.";
     }
 
     /**
@@ -354,6 +334,29 @@ Consider market trends, technical indicators, fundamental analysis, and the user
         } catch (Exception $e) {
             Log::error("Failed to get recent suggestions: " . $e->getMessage());
             return [];
+        }
+    }
+
+    /**
+     * Test OpenAI connection without structured output
+     */
+    public function testOpenAIConnection(): ?string
+    {
+        try {
+            $response = Prism::text()
+                ->using(Provider::OpenAI, 'gpt-4o')
+                ->withPrompt('Say "Hello from AI Advisor" briefly.')
+                ->withProviderOptions([
+                    'temperature' => 0.3,
+                    'max_tokens' => 50,
+                ])
+                ->asText();
+
+            return $response->text ?? null;
+
+        } catch (Exception $e) {
+            Log::error("OpenAI connection test failed: " . $e->getMessage());
+            return null;
         }
     }
 }

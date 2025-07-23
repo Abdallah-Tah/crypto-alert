@@ -29,7 +29,7 @@ class WatchlistService
         try {
             // Check if already exists
             $existing = DB::table('watchlists')
-                ->where('user_id', $user->id)
+                ->where('user_id', $user->getKey())
                 ->where('symbol', $symbol)
                 ->first();
 
@@ -52,7 +52,7 @@ class WatchlistService
             }
 
             $watchlistId = DB::table('watchlists')->insertGetId([
-                'user_id' => $user->id,
+                'user_id' => $user->getKey(),
                 'symbol' => $symbol,
                 'alert_price' => $alertPrice,
                 'enabled' => true,
@@ -90,7 +90,7 @@ class WatchlistService
         try {
             $deleted = DB::table('watchlists')
                 ->where('id', $watchlistId)
-                ->where('user_id', $user->id)
+                ->where('user_id', $user->getKey())
                 ->delete();
 
             return $deleted > 0;
@@ -111,7 +111,7 @@ class WatchlistService
     {
         try {
             $watchlistItems = DB::table('watchlists')
-                ->where('user_id', $user->id)
+                ->where('user_id', $user->getKey())
                 ->orderBy('created_at', 'desc')
                 ->get();
 
@@ -153,7 +153,7 @@ class WatchlistService
         try {
             $updated = DB::table('watchlists')
                 ->where('id', $watchlistId)
-                ->where('user_id', $user->id)
+                ->where('user_id', $user->getKey())
                 ->update([
                     'enabled' => $enabled,
                     'updated_at' => now()
@@ -180,7 +180,7 @@ class WatchlistService
         try {
             $updated = DB::table('watchlists')
                 ->where('id', $watchlistId)
-                ->where('user_id', $user->id)
+                ->where('user_id', $user->getKey())
                 ->update([
                     'alert_price' => $alertPrice,
                     'updated_at' => now()
@@ -207,7 +207,7 @@ class WatchlistService
 
             $summary = [
                 'total_coins' => count($watchlist),
-                'alerts_enabled' => 0,
+                'alerts_active' => 0, // Changed from alerts_enabled for frontend compatibility
                 'total_value' => 0,
                 'top_gainers' => [],
                 'top_losers' => []
@@ -215,10 +215,23 @@ class WatchlistService
 
             $gainers = [];
             $losers = [];
+            $totalValue = 0;
 
             foreach ($watchlist as $item) {
                 if ($item['enabled']) {
-                    $summary['alerts_enabled']++;
+                    $summary['alerts_active']++;
+                }
+
+                // Calculate mock portfolio value (assuming 0.1 BTC worth for each coin)
+                if ($item['current_price']) {
+                    if ($item['symbol'] === 'BTC/USDT') {
+                        $totalValue += $item['current_price'] * 0.1; // 0.1 BTC
+                    } elseif ($item['symbol'] === 'ETH/USDT') {
+                        $totalValue += $item['current_price'] * 3; // 3 ETH
+                    } else {
+                        // For other coins, assume $1000 worth
+                        $totalValue += 1000;
+                    }
                 }
 
                 if ($item['change_24h'] !== null) {
@@ -229,6 +242,8 @@ class WatchlistService
                     }
                 }
             }
+
+            $summary['total_value'] = $totalValue;
 
             // Sort and get top 3
             usort($gainers, fn($a, $b) => $b['change_24h'] <=> $a['change_24h']);
@@ -243,7 +258,7 @@ class WatchlistService
             Log::error("Failed to get watchlist summary: " . $e->getMessage());
             return [
                 'total_coins' => 0,
-                'alerts_enabled' => 0,
+                'alerts_active' => 0,
                 'total_value' => 0,
                 'top_gainers' => [],
                 'top_losers' => []
@@ -284,7 +299,7 @@ class WatchlistService
     {
         try {
             return DB::table('watchlists')
-                ->where('user_id', $user->id)
+                ->where('user_id', $user->getKey())
                 ->pluck('symbol')
                 ->toArray();
 
