@@ -38,7 +38,7 @@ class DashboardController extends Controller
         // Get AI market sentiment (if available)
         $marketSentiment = $this->aiAdvisorService->getMarketSentiment($topCoins);
 
-        return Inertia::render('Dashboard', [
+        return Inertia::render('dashboard', [
             'watchlistSummary' => $watchlistSummary,
             'topCoins' => $topCoins,
             'recentAlerts' => $recentAlerts,

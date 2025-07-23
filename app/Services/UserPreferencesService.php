@@ -5,10 +5,28 @@ namespace App\Services;
 use App\Models\User;
 use Exception;
 use Illuminate\Support\Facades\Log;
-use Native\Laravel\Facades\Storage;
+use Illuminate\Support\Facades\Storage as LaravelStorage;
 
 class UserPreferencesService
 {
+    /**
+     * Get the appropriate storage instance
+     */
+    private function getStorage()
+    {
+        // In testing environment, use Laravel's storage
+        if (app()->environment('testing')) {
+            return LaravelStorage::fake();
+        }
+
+        // In production with NativePHP, use Native storage
+        if (class_exists('\Native\Laravel\Facades\Storage')) {
+            return app('\Native\Laravel\Facades\Storage');
+        }
+
+        // Fallback to Laravel storage
+        return LaravelStorage::disk('local');
+    }
     /**
      * Get user preferences from local storage
      *
@@ -33,7 +51,8 @@ class UserPreferencesService
             ];
 
             $storageKey = "user_preferences_{$user->id}";
-            $storedPreferences = Storage::get($storageKey);
+            $storage = $this->getStorage();
+            $storedPreferences = $storage->get($storageKey);
 
             if ($storedPreferences) {
                 return array_merge($defaultPreferences, json_decode($storedPreferences, true));
@@ -66,7 +85,8 @@ class UserPreferencesService
             // Validate preferences
             $validatedPreferences = $this->validatePreferences($updatedPreferences);
 
-            Storage::put($storageKey, json_encode($validatedPreferences));
+            $storage = $this->getStorage();
+            $storage->put($storageKey, json_encode($validatedPreferences));
 
             Log::info("User preferences saved", [
                 'user_id' => $user->id,
@@ -184,7 +204,8 @@ class UserPreferencesService
     {
         try {
             $storageKey = "user_preferences_{$user->id}";
-            Storage::delete($storageKey);
+            $storage = $this->getStorage();
+            $storage->delete($storageKey);
 
             Log::info("User preferences reset to default", ['user_id' => $user->id]);
 

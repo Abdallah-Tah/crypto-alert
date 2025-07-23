@@ -258,7 +258,7 @@ class AIAdvisorService
     ): string {
         return "As a professional cryptocurrency investment advisor, analyze {$symbol} with the following data:
 
-Current Price: \${$currentPrice}
+Current Price: \$" . number_format($currentPrice, 0) . "
 24h Change: {$change24h}%
 User Risk Level: {$riskLevel}
 Investment Time Horizon: {$timeHorizon}-term
@@ -295,7 +295,7 @@ Consider market trends, technical indicators, fundamental analysis, and the user
             $keyFactors = "\n\nKey Factors:\n" . implode("\n", array_map(fn($factor) => "• " . $factor, $structuredAdvice['key_factors']));
         }
 
-        return "🎯 RECOMMENDATION: {$recommendation}
+        return "💡 RECOMMENDATION: {$recommendation}
 
 📊 ANALYSIS:
 {$reasoning}
