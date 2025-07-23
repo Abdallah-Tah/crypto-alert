@@ -29,20 +29,28 @@ class DashboardController extends Controller
         // Get user's watchlist summary
         $watchlistSummary = $this->watchlistService->getWatchlistSummary($user);
 
-        // Get top coins from market
-        $topCoins = $this->ccxtService->getTopCoins(5);
+        // Get top coins from market (as top movers)
+        $topMovers = $this->ccxtService->getTopCoins(5);
 
         // Get recent alerts
         $recentAlerts = $this->alertService->getUserAlerts($user, 5);
 
-        // Get AI market sentiment (if available)
-        $marketSentiment = $this->aiAdvisorService->getMarketSentiment($topCoins);
+        // Get recent AI suggestions
+        $aiSuggestions = $this->aiAdvisorService->getRecentSuggestions($user, 3);
+
+        // Create market summary
+        $marketSummary = [
+            'total_market_cap' => 2500000000000, // 2.5T placeholder
+            'btc_dominance' => 45.2,
+            'market_change' => 2.5,
+        ];
 
         return Inertia::render('dashboard', [
             'watchlistSummary' => $watchlistSummary,
-            'topCoins' => $topCoins,
+            'topMovers' => $topMovers,
             'recentAlerts' => $recentAlerts,
-            'marketSentiment' => $marketSentiment,
+            'aiSuggestions' => $aiSuggestions,
+            'marketSummary' => $marketSummary,
         ]);
     }
 }

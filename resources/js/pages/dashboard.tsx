@@ -6,6 +6,49 @@ import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 import { ArrowRight, Bell, Brain, DollarSign, Star, TrendingDown, TrendingUp, Zap } from 'lucide-react';
 
+interface WatchlistSummary {
+    total_coins: number;
+    alerts_active: number;
+    total_value: number;
+}
+
+interface TopMover {
+    symbol: string;
+    current_price: number;
+    price_change_24h: number;
+}
+
+interface RecentAlert {
+    symbol: string;
+    message: string;
+    triggered_at: string;
+    type: string;
+}
+
+interface AISuggestion {
+    id: number;
+    symbol: string;
+    suggestion: string;
+    model_used: string;
+    risk_level: string;
+    time_horizon: string;
+    created_at: string;
+}
+
+interface MarketSummary {
+    total_market_cap: number;
+    btc_dominance: number;
+    market_change: number;
+}
+
+interface DashboardProps {
+    watchlistSummary: WatchlistSummary;
+    topMovers: TopMover[];
+    recentAlerts: RecentAlert[];
+    aiSuggestions: AISuggestion[];
+    marketSummary: MarketSummary;
+}
+
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Dashboard',
@@ -19,8 +62,8 @@ export default function Dashboard({
     topMovers = [],
     aiSuggestions = [],
     marketSummary = { total_market_cap: 0, btc_dominance: 0, market_change: 0 },
-}) {
-    const formatPrice = (price) => {
+}: DashboardProps) {
+    const formatPrice = (price: number): string => {
         if (!price) return '$0.00';
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
@@ -30,7 +73,7 @@ export default function Dashboard({
         }).format(price);
     };
 
-    const formatPercentage = (percentage) => {
+    const formatPercentage = (percentage: number): string => {
         if (percentage === null || percentage === undefined) return '0.00%';
         const formatted = Math.abs(percentage).toFixed(2);
         return percentage >= 0 ? `+${formatted}%` : `-${formatted}%`;

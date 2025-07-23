@@ -11,6 +11,8 @@ use Prism\Prism\Schema\StringSchema;
 use Prism\Prism\Schema\NumberSchema;
 use Prism\Prism\Schema\ArraySchema;
 use Prism\Prism\Exceptions\PrismException;
+use App\Models\AiSuggestion;
+use App\Models\User;
 
 class AIAdvisorService
 {
@@ -331,5 +333,27 @@ Consider market trends, technical indicators, fundamental analysis, and the user
         }
 
         return $formattedText;
+    }
+
+    /**
+     * Get recent AI suggestions for a user
+     *
+     * @param User $user
+     * @param int $limit
+     * @return array
+     */
+    public function getRecentSuggestions(User $user, int $limit = 10): array
+    {
+        try {
+            $suggestions = AiSuggestion::forUser($user->getKey())
+                ->orderBy('created_at', 'desc')
+                ->limit($limit)
+                ->get();
+
+            return $suggestions->toArray();
+        } catch (Exception $e) {
+            Log::error("Failed to get recent suggestions: " . $e->getMessage());
+            return [];
+        }
     }
 }
