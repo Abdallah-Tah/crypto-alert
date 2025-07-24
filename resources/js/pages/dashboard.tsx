@@ -77,9 +77,9 @@ export default function Dashboard({
         isActive,
     } = useLivePrices({ interval: 2000 }); // Update every 2 seconds for real-time data
 
-    // Use live data if available, fallback to initial props
+    // Use live data for top movers, but keep initial watchlist summary
     const currentTopMovers = liveData?.topMovers || topMovers;
-    const currentWatchlistSummary = liveData?.watchlistSummary || watchlistSummary;
+    const currentWatchlistSummary = watchlistSummary; // Always use initial data for user-specific info
 
     // Show loading state for individual components
     const isDataLoading = liveLoading && !liveData;

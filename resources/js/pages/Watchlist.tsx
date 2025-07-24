@@ -3,11 +3,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { WatchlistModal } from '@/components/WatchlistModal';
+import { useLivePrices } from '@/hooks/use-live-prices';
 import AppLayout from '@/layouts/app-layout';
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { AlertCircle, Bell, BellOff, Edit, Eye, Plus, Star, Trash2, TrendingDown, TrendingUp } from 'lucide-react';
 import { useState } from 'react';
 
@@ -15,6 +14,10 @@ interface WatchlistItem {
     id: number;
     symbol: string;
     alert_price: number | null;
+    holdings_amount?: number | null;
+    purchase_price?: number | null;
+    alert_type?: string;
+    notes?: string | null;
     enabled: boolean;
     current_price?: number;
     price_change_24h?: number;
@@ -36,21 +39,38 @@ const breadcrumbs = [
 ];
 
 export default function Watchlist({ watchlist, availableSymbols, flash }) {
-    const [editingPrice, setEditingPrice] = useState(null);
-    const [newPrice, setNewPrice] = useState('');
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingItem, setEditingItem] = useState(null);
 
-    const { data, setData, post, processing, errors, reset } = useForm({
-        symbol: '',
-        alert_price: '',
+    // Get live prices for watchlist symbols
+    const symbols = watchlist.map((item) => item.symbol);
+    const { prices: livePrices } = useLivePrices(symbols);
+
+    // Merge live prices with watchlist data
+    const watchlistWithLivePrices = watchlist.map((item) => {
+        const livePrice = livePrices.find((p) => p.symbol === item.symbol);
+        return {
+            ...item,
+            current_price: livePrice?.current_price || item.current_price,
+            price_change_24h: livePrice?.price_change_24h || item.price_change_24h,
+            last_updated: livePrice?.last_updated || item.last_updated,
+        };
     });
 
-    const handleAddCoin = (e) => {
-        e.preventDefault();
-        post('/watchlist/add', {
-            onSuccess: () => {
-                reset();
-            },
-        });
+    // Remove the old useForm hook since we're using the modal now
+    const openAddModal = () => {
+        setEditingItem(null);
+        setIsModalOpen(true);
+    };
+
+    const openEditModal = (item) => {
+        setEditingItem(item);
+        setIsModalOpen(true);
+    };
+
+    const closeModal = () => {
+        setIsModalOpen(false);
+        setEditingItem(null);
     };
 
     const toggleAlert = (itemId) => {
@@ -69,32 +89,6 @@ export default function Watchlist({ watchlist, availableSymbols, flash }) {
                 preserveScroll: true,
             });
         }
-    };
-
-    const startEditingPrice = (item) => {
-        setEditingPrice(item.id);
-        setNewPrice(item.alert_price?.toString() || '');
-    };
-
-    const savePrice = (itemId) => {
-        router.patch(
-            `/watchlist/${itemId}/price`,
-            {
-                alert_price: parseFloat(newPrice),
-            },
-            {
-                preserveScroll: true,
-                onSuccess: () => {
-                    setEditingPrice(null);
-                    setNewPrice('');
-                },
-            },
-        );
-    };
-
-    const cancelEdit = () => {
-        setEditingPrice(null);
-        setNewPrice('');
     };
 
     const formatPrice = (price) => {
@@ -144,62 +138,20 @@ export default function Watchlist({ watchlist, availableSymbols, flash }) {
                     </Alert>
                 )}
 
-                {/* Add Coin Form */}
+                {/* Add Coin Button */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Plus className="h-5 w-5 text-blue-600" />
                             Add Cryptocurrency
                         </CardTitle>
-                        <CardDescription>Add a new cryptocurrency to your watchlist with optional price alerts</CardDescription>
+                        <CardDescription>Add a new cryptocurrency to your watchlist with holdings and alert preferences</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <form onSubmit={handleAddCoin} className="space-y-4">
-                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label htmlFor="symbol">Cryptocurrency</Label>
-                                    <Select value={data.symbol} onValueChange={(value) => setData('symbol', value)}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select a cryptocurrency" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {availableSymbols.map((symbol) => (
-                                                <SelectItem key={symbol} value={symbol}>
-                                                    {symbol}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    {errors.symbol && <p className="text-sm text-red-600">{errors.symbol}</p>}
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label htmlFor="alert_price">Alert Price (Optional)</Label>
-                                    <Input
-                                        type="number"
-                                        step="any"
-                                        placeholder="Enter target price"
-                                        value={data.alert_price}
-                                        onChange={(e) => setData('alert_price', e.target.value)}
-                                    />
-                                    {errors.alert_price && <p className="text-sm text-red-600">{errors.alert_price}</p>}
-                                </div>
-                            </div>
-
-                            <Button type="submit" disabled={processing || !data.symbol} className="w-full">
-                                {processing ? (
-                                    <>
-                                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-foreground" />
-                                        Adding...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Plus className="mr-2 h-4 w-4" />
-                                        Add to Watchlist
-                                    </>
-                                )}
-                            </Button>
-                        </form>
+                        <Button onClick={openAddModal} className="w-full">
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add to Watchlist
+                        </Button>
                     </CardContent>
                 </Card>
 
@@ -210,13 +162,13 @@ export default function Watchlist({ watchlist, availableSymbols, flash }) {
                             <Eye className="h-5 w-5 text-purple-600" />
                             Your Watchlist
                             <Badge variant="secondary" className="ml-auto">
-                                {watchlist.length} coins
+                                {watchlistWithLivePrices.length} coins
                             </Badge>
                         </CardTitle>
                         <CardDescription>Monitor prices and manage alerts for your favorite cryptocurrencies</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {watchlist.length === 0 ? (
+                        {watchlistWithLivePrices.length === 0 ? (
                             <div className="py-12 text-center text-muted-foreground">
                                 <Star className="mx-auto mb-4 h-16 w-16 opacity-50" />
                                 <h3 className="mb-2 text-lg font-medium">No coins in watchlist</h3>
@@ -224,7 +176,7 @@ export default function Watchlist({ watchlist, availableSymbols, flash }) {
                             </div>
                         ) : (
                             <div className="space-y-4">
-                                {watchlist.map((item) => (
+                                {watchlistWithLivePrices.map((item) => (
                                     <div
                                         key={item.id}
                                         className="flex items-center justify-between rounded-lg border bg-card p-4 transition-colors hover:bg-muted/50"
@@ -270,29 +222,10 @@ export default function Watchlist({ watchlist, availableSymbols, flash }) {
                                                 )}
                                             </div>
 
-                                            {/* Edit Price */}
-                                            {editingPrice === item.id ? (
-                                                <div className="flex items-center gap-2">
-                                                    <Input
-                                                        type="number"
-                                                        step="any"
-                                                        value={newPrice}
-                                                        onChange={(e) => setNewPrice(e.target.value)}
-                                                        className="w-24"
-                                                        placeholder="Price"
-                                                    />
-                                                    <Button size="sm" onClick={() => savePrice(item.id)} disabled={!newPrice}>
-                                                        Save
-                                                    </Button>
-                                                    <Button size="sm" variant="outline" onClick={cancelEdit}>
-                                                        Cancel
-                                                    </Button>
-                                                </div>
-                                            ) : (
-                                                <Button size="sm" variant="ghost" onClick={() => startEditingPrice(item)}>
-                                                    <Edit className="h-4 w-4" />
-                                                </Button>
-                                            )}
+                                            {/* Edit Holdings */}
+                                            <Button size="sm" variant="ghost" onClick={() => openEditModal(item)}>
+                                                <Edit className="h-4 w-4" />
+                                            </Button>
 
                                             {/* Remove */}
                                             <Button
@@ -310,6 +243,15 @@ export default function Watchlist({ watchlist, availableSymbols, flash }) {
                         )}
                     </CardContent>
                 </Card>
+
+                {/* Watchlist Modal */}
+                <WatchlistModal
+                    isOpen={isModalOpen}
+                    onClose={closeModal}
+                    availableSymbols={availableSymbols}
+                    editItem={editingItem}
+                    currentPrice={editingItem ? watchlistWithLivePrices.find((item) => item.id === editingItem.id)?.current_price : null}
+                />
             </div>
         </AppLayout>
     );

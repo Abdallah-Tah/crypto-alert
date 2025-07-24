@@ -27,10 +27,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Watchlist routes
     Route::prefix('watchlist')->name('watchlist.')->group(function () {
         Route::get('/', [WatchlistController::class, 'index'])->name('index');
-        Route::post('/add', [WatchlistController::class, 'add'])->name('add');
-        Route::delete('/{watchlist}', [WatchlistController::class, 'remove'])->name('remove');
+        Route::post('/add', [WatchlistController::class, 'store'])->name('add');
+        Route::delete('/{watchlist}', [WatchlistController::class, 'destroy'])->name('remove');
         Route::patch('/{watchlist}/toggle', [WatchlistController::class, 'toggleAlert'])->name('toggle-alert');
         Route::patch('/{watchlist}/price', [WatchlistController::class, 'updateAlertPrice'])->name('update-price');
+        Route::patch('/{watchlist}', [WatchlistController::class, 'update'])->name('update');
     });
 
     // Crypto API routes (for AJAX calls from frontend)

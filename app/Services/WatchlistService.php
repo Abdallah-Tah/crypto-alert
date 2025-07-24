@@ -22,10 +22,21 @@ class WatchlistService
      * @param User $user
      * @param string $symbol
      * @param float|null $alertPrice
+     * @param float|null $holdingsAmount
+     * @param float|null $purchasePrice
+     * @param string $alertType
+     * @param string|null $notes
      * @return array|null
      */
-    public function addToWatchlist(User $user, string $symbol, ?float $alertPrice = null): ?array
-    {
+    public function addToWatchlist(
+        User $user,
+        string $symbol,
+        ?float $alertPrice = null,
+        ?float $holdingsAmount = null,
+        ?float $purchasePrice = null,
+        string $alertType = 'market_price',
+        ?string $notes = null
+    ): ?array {
         try {
             // Check if already exists
             $existing = DB::table('watchlists')
@@ -55,6 +66,10 @@ class WatchlistService
                 'user_id' => $user->getKey(),
                 'symbol' => $symbol,
                 'alert_price' => $alertPrice,
+                'holdings_amount' => $holdingsAmount,
+                'purchase_price' => $purchasePrice,
+                'alert_type' => $alertType,
+                'notes' => $notes,
                 'enabled' => true,
                 'created_at' => now(),
                 'updated_at' => now()
@@ -124,10 +139,14 @@ class WatchlistService
                     'id' => $item->id,
                     'symbol' => $item->symbol,
                     'alert_price' => $item->alert_price,
+                    'holdings_amount' => $item->holdings_amount,
+                    'purchase_price' => $item->purchase_price,
+                    'alert_type' => $item->alert_type,
+                    'notes' => $item->notes,
                     'enabled' => $item->enabled,
                     'created_at' => $item->created_at,
                     'current_price' => $currentPrice ? $currentPrice['price'] : null,
-                    'change_24h' => $currentPrice ? $currentPrice['change_24h'] : null,
+                    'price_change_24h' => $currentPrice ? $currentPrice['change_24h'] : null,
                     'price_data' => $currentPrice
                 ];
             }
@@ -155,9 +174,9 @@ class WatchlistService
                 ->where('id', $watchlistId)
                 ->where('user_id', $user->getKey())
                 ->update([
-                    'enabled' => $enabled,
-                    'updated_at' => now()
-                ]);
+                        'enabled' => $enabled,
+                        'updated_at' => now()
+                    ]);
 
             return $updated > 0;
 
@@ -182,14 +201,62 @@ class WatchlistService
                 ->where('id', $watchlistId)
                 ->where('user_id', $user->getKey())
                 ->update([
-                    'alert_price' => $alertPrice,
-                    'updated_at' => now()
-                ]);
+                        'alert_price' => $alertPrice,
+                        'updated_at' => now()
+                    ]);
 
             return $updated > 0;
 
         } catch (Exception $e) {
             Log::error("Failed to update alert price: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Update watchlist item with holdings and other details
+     *
+     * @param User $user
+     * @param int $watchlistId
+     * @param array $data
+     * @return bool
+     */
+    public function updateWatchlistItem(User $user, int $watchlistId, array $data): bool
+    {
+        try {
+            $updateData = [
+                'updated_at' => now()
+            ];
+
+            // Only update fields that are provided
+            if (isset($data['alert_price'])) {
+                $updateData['alert_price'] = $data['alert_price'];
+            }
+            if (isset($data['holdings_amount'])) {
+                $updateData['holdings_amount'] = $data['holdings_amount'];
+            }
+            if (isset($data['purchase_price'])) {
+                $updateData['purchase_price'] = $data['purchase_price'];
+            }
+            if (isset($data['alert_type'])) {
+                $updateData['alert_type'] = $data['alert_type'];
+            }
+            if (isset($data['notes'])) {
+                $updateData['notes'] = $data['notes'];
+            }
+            if (isset($data['enabled'])) {
+                $updateData['enabled'] = $data['enabled'];
+            }
+
+            $updated = DB::table('watchlists')
+                ->where('id', $watchlistId)
+                ->where('user_id', $user->getKey())
+                ->update($updateData);
+
+            return $updated > 0;
+
+        } catch (Exception $e) {
+            Log::error("Failed to update watchlist item: " . $e->getMessage());
             return false;
         }
     }
@@ -222,20 +289,13 @@ class WatchlistService
                     $summary['alerts_active']++;
                 }
 
-                // Calculate mock portfolio value (assuming 0.1 BTC worth for each coin)
-                if ($item['current_price']) {
-                    if ($item['symbol'] === 'BTC/USDT') {
-                        $totalValue += $item['current_price'] * 0.1; // 0.1 BTC
-                    } elseif ($item['symbol'] === 'ETH/USDT') {
-                        $totalValue += $item['current_price'] * 3; // 3 ETH
-                    } else {
-                        // For other coins, assume $1000 worth
-                        $totalValue += 1000;
-                    }
+                // Calculate portfolio value based on user's actual holdings
+                if ($item['current_price'] && $item['holdings_amount'] && $item['holdings_amount'] > 0) {
+                    $totalValue += $item['current_price'] * $item['holdings_amount'];
                 }
 
-                if ($item['change_24h'] !== null) {
-                    if ($item['change_24h'] > 0) {
+                if ($item['price_change_24h'] !== null) {
+                    if ($item['price_change_24h'] > 0) {
                         $gainers[] = $item;
                     } else {
                         $losers[] = $item;
@@ -246,8 +306,8 @@ class WatchlistService
             $summary['total_value'] = $totalValue;
 
             // Sort and get top 3
-            usort($gainers, fn($a, $b) => $b['change_24h'] <=> $a['change_24h']);
-            usort($losers, fn($a, $b) => $a['change_24h'] <=> $b['change_24h']);
+            usort($gainers, fn($a, $b) => $b['price_change_24h'] <=> $a['price_change_24h']);
+            usort($losers, fn($a, $b) => $a['price_change_24h'] <=> $b['price_change_24h']);
 
             $summary['top_gainers'] = array_slice($gainers, 0, 3);
             $summary['top_losers'] = array_slice($losers, 0, 3);
