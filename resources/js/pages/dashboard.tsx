@@ -1,6 +1,8 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { LivePriceIndicator } from '@/components/ui/live-price-indicator';
+import { useLivePrices } from '@/hooks/use-live-prices';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
@@ -63,6 +65,24 @@ export default function Dashboard({
     aiSuggestions = [],
     marketSummary = { total_market_cap: 0, btc_dominance: 0, market_change: 0 },
 }: DashboardProps) {
+    // Use live price updates
+    const {
+        data: liveData,
+        loading: liveLoading,
+        error: liveError,
+        lastUpdate,
+        refetch,
+        pause,
+        resume,
+        isActive,
+    } = useLivePrices({ interval: 2000 }); // Update every 2 seconds for real-time data
+
+    // Use live data if available, fallback to initial props
+    const currentTopMovers = liveData?.topMovers || topMovers;
+    const currentWatchlistSummary = liveData?.watchlistSummary || watchlistSummary;
+
+    // Show loading state for individual components
+    const isDataLoading = liveLoading && !liveData;
     const formatPrice = (price: number): string => {
         if (!price) return '$0.00';
         return new Intl.NumberFormat('en-US', {
@@ -91,6 +111,14 @@ export default function Dashboard({
                         <p className="text-muted-foreground">Monitor your portfolio and get AI-powered insights</p>
                     </div>
                     <div className="flex gap-2">
+                        <LivePriceIndicator
+                            isActive={isActive}
+                            lastUpdate={lastUpdate}
+                            error={liveError}
+                            onToggle={() => (isActive ? pause() : resume())}
+                            onRefresh={refetch}
+                            className="mr-2"
+                        />
                         <Link href="/advisor">
                             <Button className="flex items-center gap-2">
                                 <Brain className="h-4 w-4" />
@@ -115,8 +143,15 @@ export default function Dashboard({
                             <DollarSign className="h-4 w-4 text-blue-600" />
                         </CardHeader>
                         <CardContent className="relative">
-                            <div className="text-2xl font-bold">{formatPrice(watchlistSummary.total_value)}</div>
-                            <p className="text-xs text-muted-foreground">Total watchlist value</p>
+                            <div className={`text-2xl font-bold transition-all duration-300 ${liveLoading ? 'text-blue-600' : ''}`}>
+                                {formatPrice(currentWatchlistSummary.total_value)}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Total watchlist value
+                                {liveData && !liveError && <span className="ml-1 text-green-500">● Live</span>}
+                                {liveLoading && <span className="ml-1 text-blue-500">● Updating...</span>}
+                                {liveError && <span className="ml-1 text-red-500">● Error</span>}
+                            </p>
                         </CardContent>
                     </Card>
 
@@ -127,7 +162,7 @@ export default function Dashboard({
                             <Star className="h-4 w-4 text-green-600" />
                         </CardHeader>
                         <CardContent className="relative">
-                            <div className="text-2xl font-bold">{watchlistSummary.total_coins}</div>
+                            <div className="text-2xl font-bold">{currentWatchlistSummary.total_coins}</div>
                             <p className="text-xs text-muted-foreground">In your watchlist</p>
                         </CardContent>
                     </Card>
@@ -139,7 +174,7 @@ export default function Dashboard({
                             <Bell className="h-4 w-4 text-orange-600" />
                         </CardHeader>
                         <CardContent className="relative">
-                            <div className="text-2xl font-bold">{watchlistSummary.alerts_active}</div>
+                            <div className="text-2xl font-bold">{currentWatchlistSummary.alerts_active}</div>
                             <p className="text-xs text-muted-foreground">Price alerts enabled</p>
                         </CardContent>
                     </Card>
@@ -207,11 +242,15 @@ export default function Dashboard({
                             <CardTitle className="flex items-center gap-2">
                                 <Zap className="h-5 w-5 text-yellow-600" />
                                 Top Movers
+                                {liveLoading && <div className="h-2 w-2 animate-pulse rounded-full bg-blue-500"></div>}
                             </CardTitle>
-                            <CardDescription>Biggest price changes in your watchlist</CardDescription>
+                            <CardDescription>
+                                Biggest price changes in your watchlist
+                                {liveError && <span className="block text-xs text-red-500">● Connection error</span>}
+                            </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            {topMovers.length === 0 ? (
+                            {currentTopMovers.length === 0 ? (
                                 <div className="py-8 text-center text-muted-foreground">
                                     <TrendingUp className="mx-auto mb-3 h-12 w-12 opacity-50" />
                                     <p className="mb-2">No price movements to show</p>
@@ -224,11 +263,22 @@ export default function Dashboard({
                                 </div>
                             ) : (
                                 <div className="space-y-3">
-                                    {topMovers.slice(0, 5).map((coin, index) => (
-                                        <div key={index} className="flex items-center justify-between">
+                                    {currentTopMovers.slice(0, 5).map((coin) => (
+                                        <div
+                                            key={`${coin.symbol}-${liveData?.timestamp || 'initial'}`}
+                                            className={`flex items-center justify-between transition-all duration-500 ${
+                                                liveLoading ? 'opacity-70' : 'opacity-100'
+                                            }`}
+                                        >
                                             <div className="flex items-center gap-3">
                                                 <Badge variant="outline">{coin.symbol}</Badge>
-                                                <span className="text-sm font-medium">{formatPrice(coin.current_price)}</span>
+                                                <span
+                                                    className={`text-sm font-medium transition-all duration-300 ${
+                                                        liveLoading ? 'animate-pulse text-blue-600' : ''
+                                                    }`}
+                                                >
+                                                    {formatPrice(coin.current_price)}
+                                                </span>
                                             </div>
                                             <div
                                                 className={`flex items-center gap-1 text-sm ${
