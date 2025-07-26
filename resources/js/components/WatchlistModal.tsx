@@ -7,26 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useForm } from '@inertiajs/react';
 import { Coins, DollarSign, Percent, Target } from 'lucide-react';
 
-interface WatchlistItem {
-    id?: number;
-    symbol: string;
-    alert_price?: number | null;
-    holdings_amount?: number | null;
-    purchase_price?: number | null;
-    alert_type?: string;
-    notes?: string | null;
-    enabled?: boolean;
-}
-
-interface WatchlistModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    availableSymbols: string[];
-    editItem?: WatchlistItem | null;
-    currentPrice?: number | null;
-}
-
-export function WatchlistModal({ isOpen, onClose, availableSymbols, editItem = null, currentPrice = null }: WatchlistModalProps) {
+export function WatchlistModal({ isOpen, onClose, availableSymbols, editItem = null, currentPrice = null }) {
     const isEditing = !!editItem;
 
     const { data, setData, post, patch, processing, errors, reset, clearErrors } = useForm({
@@ -39,31 +20,7 @@ export function WatchlistModal({ isOpen, onClose, availableSymbols, editItem = n
         notes: editItem?.notes || '',
     });
 
-    // Calculate coin quantity from USD value
-    const getCoinQuantityFromUSD = (usdValue: number) => {
-        if (!currentPrice || !usdValue) return 0;
-        return usdValue / currentPrice;
-    };
-
-    // Calculate USD value from coin quantity
-    const getUSDValueFromCoins = (coinQuantity: number) => {
-        if (!currentPrice || !coinQuantity) return 0;
-        return coinQuantity * currentPrice;
-    };
-
-    // Auto-calculate the opposite value when user types
-    const handleHoldingsAmountChange = (value: string) => {
-        setData('holdings_amount', value);
-    };
-
-    // Switch between input types
-    const handleHoldingsTypeChange = (type: string) => {
-        setData('holdings_type', type);
-        // Clear the amount when switching types
-        setData('holdings_amount', '');
-    };
-
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = (e) => {
         e.preventDefault();
 
         if (isEditing) {
@@ -121,46 +78,7 @@ export function WatchlistModal({ isOpen, onClose, availableSymbols, editItem = n
         return currentValue - purchaseValue;
     };
 
-    const calculatePortfolioValue = () => {
-        if (data.holdings_amount && currentPrice) {
-            const amount = parseFloat(data.holdings_amount);
-            if (data.holdings_type === 'usd_value') {
-                // If holdings are in USD value, return the entered amount
-                return amount;
-            } else {
-                // If holdings are in coin quantity, multiply by current price
-                return amount * currentPrice;
-            }
-        }
-        return 0;
-    };
-
-    const calculateCoinQuantity = () => {
-        if (data.holdings_amount && currentPrice) {
-            const amount = parseFloat(data.holdings_amount);
-            if (data.holdings_type === 'usd_value') {
-                // If holdings are in USD, calculate coin quantity
-                return amount / currentPrice;
-            } else {
-                // If holdings are already in coins, return as-is
-                return amount;
-            }
-        }
-        return 0;
-    };
-
-    const calculateProfitLoss = () => {
-        if (data.holdings_amount && data.purchase_price && currentPrice) {
-            const purchasePrice = parseFloat(data.purchase_price);
-            const coinQuantity = calculateCoinQuantity();
-            const currentValue = coinQuantity * currentPrice;
-            const purchaseValue = coinQuantity * purchasePrice;
-            return currentValue - purchaseValue;
-        }
-        return 0;
-    };
-
-    const formatCurrency = (value: number) => {
+    const formatCurrency = (value) => {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency: 'USD',
