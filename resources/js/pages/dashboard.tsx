@@ -12,6 +12,9 @@ interface WatchlistSummary {
     total_coins: number;
     alerts_active: number;
     total_value: number;
+    initial_investment: number;
+    total_profit: number;
+    profit_percent: number;
 }
 
 interface TopMover {
@@ -59,7 +62,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function Dashboard({
-    watchlistSummary = { total_coins: 0, alerts_active: 0, total_value: 0 },
+    watchlistSummary = { total_coins: 0, alerts_active: 0, total_value: 0, initial_investment: 0, total_profit: 0, profit_percent: 0 },
     recentAlerts = [],
     topMovers = [],
     aiSuggestions = [],
@@ -81,8 +84,6 @@ export default function Dashboard({
     const currentTopMovers = liveData?.topMovers || topMovers;
     const currentWatchlistSummary = watchlistSummary; // Always use initial data for user-specific info
 
-    // Show loading state for individual components
-    const isDataLoading = liveLoading && !liveData;
     const formatPrice = (price: number): string => {
         if (!price) return '$0.00';
         return new Intl.NumberFormat('en-US', {
@@ -135,7 +136,7 @@ export default function Dashboard({
                 </div>
 
                 {/* Summary Cards */}
-                <div className="grid auto-rows-min gap-4 md:grid-cols-4">
+                <div className="grid auto-rows-min gap-4 md:grid-cols-6">
                     <Card className="relative overflow-hidden">
                         <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-50 opacity-50 dark:from-blue-950/20 dark:to-indigo-950/20" />
                         <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
@@ -188,6 +189,34 @@ export default function Dashboard({
                         <CardContent className="relative">
                             <div className="text-2xl font-bold">${(marketSummary.total_market_cap / 1e12).toFixed(1)}T</div>
                             <p className="text-xs text-muted-foreground">Total crypto market</p>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="relative overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-br from-yellow-50 to-amber-50 opacity-50 dark:from-yellow-950/20 dark:to-amber-950/20" />
+                        <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Initial Investment</CardTitle>
+                            <DollarSign className="h-4 w-4 text-yellow-600" />
+                        </CardHeader>
+                        <CardContent className="relative">
+                            <div className="text-2xl font-bold">{formatPrice(currentWatchlistSummary.initial_investment)}</div>
+                            <p className="text-xs text-muted-foreground">Total invested amount</p>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="relative overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-purple-50 opacity-50 dark:from-indigo-950/20 dark:to-purple-950/20" />
+                        <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Profit/Loss</CardTitle>
+                            <TrendingUp className="h-4 w-4 text-indigo-600" />
+                        </CardHeader>
+                        <CardContent className="relative">
+                            <div className={`text-2xl font-bold ${currentWatchlistSummary.total_profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {currentWatchlistSummary.total_profit >= 0 ? '+' : ''}
+                                {formatPrice(currentWatchlistSummary.total_profit)}
+                                <span className="ml-1 text-sm font-medium">({formatPercentage(currentWatchlistSummary.profit_percent)})</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">Aggregate P/L since purchase</p>
                         </CardContent>
                     </Card>
                 </div>

@@ -314,18 +314,26 @@ class WatchlistService
                 'alerts_active' => 0, // Changed from alerts_enabled for frontend compatibility
                 'total_value' => 0,
                 'top_gainers' => [],
-                'top_losers' => []
+                'top_losers' => [],
+                'initial_investment' => 0,
+                'total_profit' => 0,
+                'profit_percent' => 0,
             ];
 
             $gainers = [];
             $losers = [];
             $totalValue = 0;
+            $initialInvestment = 0;
 
             foreach ($watchlist as $item) {
                 if ($item['enabled']) {
                     $summary['alerts_active']++;
                 }
 
+                // Sum initial investment
+                if (!empty($item['initial_investment_usd'])) {
+                    $initialInvestment += $item['initial_investment_usd'];
+                }
                 // Calculate portfolio value based on holdings type
                 if ($item['current_price'] && $item['holdings_amount'] && $item['holdings_amount'] > 0) {
                     if ($item['holdings_type'] === 'usd_value') {
@@ -354,6 +362,9 @@ class WatchlistService
             }
 
             $summary['total_value'] = $totalValue;
+            $summary['initial_investment'] = $initialInvestment;
+            $summary['total_profit'] = $totalValue - $initialInvestment;
+            $summary['profit_percent'] = $initialInvestment > 0 ? (($totalValue - $initialInvestment) / $initialInvestment) * 100 : 0;
 
             // Sort and get top 3
             usort($gainers, fn($a, $b) => $b['price_change_24h'] <=> $a['price_change_24h']);

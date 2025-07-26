@@ -78,6 +78,14 @@ export function WatchlistModal({ isOpen, onClose, availableSymbols, editItem = n
         return currentValue - purchaseValue;
     };
 
+    // Calculate profit/loss percentage based on purchase value
+    const calculateProfitLossPercent = () => {
+        if (!data.holdings_amount || !data.purchase_price || !currentPrice) return 0;
+        const profit = calculateProfitLoss();
+        const purchaseValue = calculateCoinQuantity() * parseFloat(data.purchase_price);
+        return purchaseValue ? (profit / purchaseValue) * 100 : 0;
+    };
+
     const formatCurrency = (value) => {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
@@ -260,7 +268,7 @@ export function WatchlistModal({ isOpen, onClose, availableSymbols, editItem = n
                                         <p className="text-xs text-muted-foreground">Profit/Loss</p>
                                         <p className={`text-lg font-semibold ${calculateProfitLoss() >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                             {calculateProfitLoss() >= 0 ? '+' : ''}
-                                            {formatCurrency(calculateProfitLoss())}
+                                            {formatCurrency(calculateProfitLoss())} ({calculateProfitLossPercent().toFixed(2)}%)
                                         </p>
                                     </div>
                                 )}
