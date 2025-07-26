@@ -4,7 +4,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, Brain, Folder, LayoutGrid, Settings, Star } from 'lucide-react';
+import { Bell, BookOpen, Brain, FileText, Folder, LayoutGrid, Settings, Star } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -22,6 +22,16 @@ const mainNavItems: NavItem[] = [
         title: 'Watchlist',
         href: '/watchlist',
         icon: Star,
+    },
+    {
+        title: 'Notifications',
+        href: '/notifications',
+        icon: Bell,
+    },
+    {
+        title: 'Tax Report',
+        href: '/tax-report',
+        icon: FileText,
     },
     {
         title: 'Settings',

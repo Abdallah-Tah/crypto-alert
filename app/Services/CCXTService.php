@@ -388,4 +388,21 @@ class CCXTService
             return null;
         }
     }
+
+    /**
+     * Get prices for multiple symbols at once
+     */
+    public function getPrices(array $symbols): array
+    {
+        $prices = [];
+
+        foreach ($symbols as $symbol) {
+            $price = $this->getPrice($symbol);
+            if ($price !== null) {
+                $prices[$symbol] = $price;
+            }
+        }
+
+        return $prices;
+    }
 }

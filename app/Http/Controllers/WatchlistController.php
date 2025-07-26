@@ -40,6 +40,7 @@ class WatchlistController extends Controller
             'symbol' => 'required|string',
             'alert_price' => 'nullable|numeric|min:0',
             'holdings_amount' => 'nullable|numeric|min:0',
+            'holdings_type' => 'nullable|string|in:usd_value,coin_quantity',
             'purchase_price' => 'nullable|numeric|min:0',
             'alert_type' => 'nullable|string|in:market_price,purchase_price',
             'notes' => 'nullable|string|max:1000',
@@ -51,6 +52,7 @@ class WatchlistController extends Controller
             $request->input('symbol'),
             $request->input('alert_price'),
             $request->input('holdings_amount'),
+            $request->input('holdings_type', 'usd_value'), // Default to USD value
             $request->input('purchase_price'),
             $request->input('alert_type', 'market_price'),
             $request->input('notes')
@@ -132,6 +134,7 @@ class WatchlistController extends Controller
         $request->validate([
             'alert_price' => 'nullable|numeric|min:0',
             'holdings_amount' => 'nullable|numeric|min:0',
+            'holdings_type' => 'nullable|string|in:usd_value,coin_quantity',
             'purchase_price' => 'nullable|numeric|min:0',
             'alert_type' => 'nullable|string|in:market_price,purchase_price',
             'notes' => 'nullable|string|max:1000',
@@ -142,7 +145,7 @@ class WatchlistController extends Controller
         $success = $this->watchlistService->updateWatchlistItem(
             $user,
             $watchlistId,
-            $request->only(['alert_price', 'holdings_amount', 'purchase_price', 'alert_type', 'notes', 'enabled'])
+            $request->only(['alert_price', 'holdings_amount', 'holdings_type', 'purchase_price', 'alert_type', 'notes', 'enabled'])
         );
 
         if ($success) {

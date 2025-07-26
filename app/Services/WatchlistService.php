@@ -23,6 +23,7 @@ class WatchlistService
      * @param string $symbol
      * @param float|null $alertPrice
      * @param float|null $holdingsAmount
+     * @param string $holdingsType
      * @param float|null $purchasePrice
      * @param string $alertType
      * @param string|null $notes
@@ -33,6 +34,7 @@ class WatchlistService
         string $symbol,
         ?float $alertPrice = null,
         ?float $holdingsAmount = null,
+        string $holdingsType = 'usd_value',
         ?float $purchasePrice = null,
         string $alertType = 'market_price',
         ?string $notes = null
@@ -62,11 +64,21 @@ class WatchlistService
                 ];
             }
 
+            // Calculate initial_investment_usd based on holdings_type
+            $initialInvestmentUsd = null;
+            if ($holdingsAmount && $holdingsType === 'usd_value') {
+                $initialInvestmentUsd = $holdingsAmount;
+            } elseif ($holdingsAmount && $purchasePrice && $holdingsType === 'coin_quantity') {
+                $initialInvestmentUsd = $holdingsAmount * $purchasePrice;
+            }
+
             $watchlistId = DB::table('watchlists')->insertGetId([
                 'user_id' => $user->getKey(),
                 'symbol' => $symbol,
                 'alert_price' => $alertPrice,
                 'holdings_amount' => $holdingsAmount,
+                'holdings_type' => $holdingsType,
+                'initial_investment_usd' => $initialInvestmentUsd,
                 'purchase_price' => $purchasePrice,
                 'alert_type' => $alertType,
                 'notes' => $notes,
@@ -140,6 +152,8 @@ class WatchlistService
                     'symbol' => $item->symbol,
                     'alert_price' => $item->alert_price,
                     'holdings_amount' => $item->holdings_amount,
+                    'holdings_type' => $item->holdings_type ?? 'usd_value',
+                    'initial_investment_usd' => $item->initial_investment_usd,
                     'purchase_price' => $item->purchase_price,
                     'alert_type' => $item->alert_type,
                     'notes' => $item->notes,
@@ -174,9 +188,9 @@ class WatchlistService
                 ->where('id', $watchlistId)
                 ->where('user_id', $user->getKey())
                 ->update([
-                        'enabled' => $enabled,
-                        'updated_at' => now()
-                    ]);
+                    'enabled' => $enabled,
+                    'updated_at' => now()
+                ]);
 
             return $updated > 0;
 
@@ -201,9 +215,9 @@ class WatchlistService
                 ->where('id', $watchlistId)
                 ->where('user_id', $user->getKey())
                 ->update([
-                        'alert_price' => $alertPrice,
-                        'updated_at' => now()
-                    ]);
+                    'alert_price' => $alertPrice,
+                    'updated_at' => now()
+                ]);
 
             return $updated > 0;
 
@@ -235,6 +249,9 @@ class WatchlistService
             if (isset($data['holdings_amount'])) {
                 $updateData['holdings_amount'] = $data['holdings_amount'];
             }
+            if (isset($data['holdings_type'])) {
+                $updateData['holdings_type'] = $data['holdings_type'];
+            }
             if (isset($data['purchase_price'])) {
                 $updateData['purchase_price'] = $data['purchase_price'];
             }
@@ -246,6 +263,26 @@ class WatchlistService
             }
             if (isset($data['enabled'])) {
                 $updateData['enabled'] = $data['enabled'];
+            }
+
+            // Recalculate initial_investment_usd if holdings info changes
+            if (isset($data['holdings_amount']) || isset($data['holdings_type']) || isset($data['purchase_price'])) {
+                $item = DB::table('watchlists')
+                    ->where('id', $watchlistId)
+                    ->where('user_id', $user->getKey())
+                    ->first();
+
+                if ($item) {
+                    $holdingsAmount = $data['holdings_amount'] ?? $item->holdings_amount;
+                    $holdingsType = $data['holdings_type'] ?? $item->holdings_type;
+                    $purchasePrice = $data['purchase_price'] ?? $item->purchase_price;
+
+                    if ($holdingsAmount && $holdingsType === 'usd_value') {
+                        $updateData['initial_investment_usd'] = $holdingsAmount;
+                    } elseif ($holdingsAmount && $purchasePrice && $holdingsType === 'coin_quantity') {
+                        $updateData['initial_investment_usd'] = $holdingsAmount * $purchasePrice;
+                    }
+                }
             }
 
             $updated = DB::table('watchlists')
@@ -289,9 +326,22 @@ class WatchlistService
                     $summary['alerts_active']++;
                 }
 
-                // Calculate portfolio value based on user's actual holdings
+                // Calculate portfolio value based on holdings type
                 if ($item['current_price'] && $item['holdings_amount'] && $item['holdings_amount'] > 0) {
-                    $totalValue += $item['current_price'] * $item['holdings_amount'];
+                    if ($item['holdings_type'] === 'usd_value') {
+                        // If holdings are stored as USD value, calculate current value based on price change
+                        if ($item['purchase_price'] && $item['purchase_price'] > 0) {
+                            // Calculate how many coins the USD amount represents
+                            $coinQuantity = $item['holdings_amount'] / $item['purchase_price'];
+                            $totalValue += $item['current_price'] * $coinQuantity;
+                        } else {
+                            // If no purchase price, use the USD value as-is (conservative approach)
+                            $totalValue += $item['holdings_amount'];
+                        }
+                    } else {
+                        // Holdings are stored as coin quantity
+                        $totalValue += $item['current_price'] * $item['holdings_amount'];
+                    }
                 }
 
                 if ($item['price_change_24h'] !== null) {

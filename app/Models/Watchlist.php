@@ -15,12 +15,26 @@ class Watchlist extends Model
         'user_id',
         'symbol',
         'alert_price',
+        'alert_target',
+        'alert_type',
+        'alert_enabled',
         'enabled',
+        'holdings_amount',
+        'holdings_type',
+        'initial_investment_usd',
+        'purchase_price',
+        'purchase_date',
     ];
 
     protected $casts = [
         'alert_price' => 'decimal:8',
+        'alert_target' => 'decimal:8',
+        'purchase_price' => 'decimal:8',
+        'holdings_amount' => 'decimal:8',
+        'initial_investment_usd' => 'decimal:2',
         'enabled' => 'boolean',
+        'alert_enabled' => 'boolean',
+        'purchase_date' => 'datetime',
     ];
 
     public function user(): BelongsTo
@@ -31,6 +45,11 @@ class Watchlist extends Model
     public function alerts(): HasMany
     {
         return $this->hasMany(Alert::class, 'symbol', 'symbol');
+    }
+
+    public function notifications(): HasMany
+    {
+        return $this->hasMany(Notification::class);
     }
 
     public function scopeEnabled($query)
