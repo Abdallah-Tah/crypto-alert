@@ -179,6 +179,14 @@ export default function AIAdvisor({ riskLevels, timeHorizons, recentSuggestions,
     const formatAnalysisText = (text: string) => {
         if (!text) return '';
 
+        // Function to convert markdown to HTML
+        const convertMarkdownToHTML = (text: string) => {
+            return text
+                .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-foreground">$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em class="italic text-foreground">$1</em>')
+                .replace(/`(.*?)`/g, '<code class="rounded bg-muted px-1 py-0.5 text-sm">$1</code>');
+        };
+
         // Split text into lines and process each
         const lines = text.split('\n');
         const formattedSections: React.ReactElement[] = [];
@@ -211,40 +219,36 @@ export default function AIAdvisor({ riskLevels, timeHorizons, recentSuggestions,
             // Handle bullet points
             else if (trimmedLine.startsWith('-') || trimmedLine.startsWith('•')) {
                 const bulletText = trimmedLine.replace(/^[-•]\s*/, '');
+                const formattedBulletText = convertMarkdownToHTML(bulletText);
                 formattedSections.push(
                     <div key={`bullet-${index}`} className="mb-1 ml-4 flex items-start gap-2">
                         <span className="mt-1 text-blue-600 dark:text-blue-400">•</span>
-                        <span className="leading-relaxed text-foreground">{bulletText}</span>
+                        <span className="leading-relaxed text-foreground" dangerouslySetInnerHTML={{ __html: formattedBulletText }} />
                     </div>,
-                );
-            }
-            // Handle bold text patterns
-            else if (trimmedLine.includes('**') || trimmedLine.includes('*')) {
-                const formattedText = trimmedLine
-                    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-foreground">$1</strong>')
-                    .replace(/\*(.*?)\*/g, '<em class="italic text-foreground">$1</em>');
-
-                formattedSections.push(
-                    <p key={`text-${index}`} className="mb-2 leading-relaxed text-foreground" dangerouslySetInnerHTML={{ __html: formattedText }} />,
                 );
             }
             // Handle key-value pairs (lines with ":")
             else if (trimmedLine.includes(':') && !trimmedLine.endsWith(':')) {
                 const [key, ...valueParts] = trimmedLine.split(':');
                 const value = valueParts.join(':').trim();
+                const formattedKey = convertMarkdownToHTML(key.trim());
+                const formattedValue = convertMarkdownToHTML(value);
+
                 formattedSections.push(
                     <div key={`kv-${index}`} className="mb-2 flex flex-col gap-1 sm:flex-row sm:gap-3">
-                        <span className="min-w-fit font-semibold text-blue-700 dark:text-blue-300">{key.trim()}:</span>
-                        <span className="text-foreground">{value}</span>
+                        <span
+                            className="min-w-fit font-semibold text-blue-700 dark:text-blue-300"
+                            dangerouslySetInnerHTML={{ __html: formattedKey + ':' }}
+                        />
+                        <span className="text-foreground" dangerouslySetInnerHTML={{ __html: formattedValue }} />
                     </div>,
                 );
             }
-            // Regular paragraph text
+            // Regular paragraph text - always process for markdown
             else {
+                const formattedText = convertMarkdownToHTML(trimmedLine);
                 formattedSections.push(
-                    <p key={`para-${index}`} className="mb-2 leading-relaxed text-foreground">
-                        {trimmedLine}
-                    </p>,
+                    <p key={`para-${index}`} className="mb-2 leading-relaxed text-foreground" dangerouslySetInnerHTML={{ __html: formattedText }} />,
                 );
             }
         });
