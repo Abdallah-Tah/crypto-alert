@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\CryptoDataController;
+use App\Http\Controllers\Api\MarketIntelligenceController;
+use App\Http\Controllers\Api\AdvancedPortfolioMetricsController;
 use App\Http\Controllers\Api\PortfolioAnalyticsController;
 use App\Http\Controllers\WatchlistController;
 use Illuminate\Http\Request;
@@ -35,3 +37,16 @@ Route::prefix('portfolio')->middleware('auth')->group(function () {
     Route::post('/snapshot', [PortfolioAnalyticsController::class, 'storeSnapshot']);
     Route::get('/metrics', [PortfolioAnalyticsController::class, 'getMetrics']);
 });
+
+// Market Intelligence routes
+Route::get('/market/intelligence', [MarketIntelligenceController::class, 'getMarketIntelligence']);
+Route::get('/market/fear-greed', [MarketIntelligenceController::class, 'getFearGreedIndex']);
+Route::get('/market/global', [MarketIntelligenceController::class, 'getGlobalMarketData']);
+Route::get('/market/gainers', [MarketIntelligenceController::class, 'getTopGainers']);
+Route::get('/market/losers', [MarketIntelligenceController::class, 'getTopLosers']);
+
+// Advanced Portfolio Metrics routes
+Route::get('/portfolio/advanced-metrics', [AdvancedPortfolioMetricsController::class, 'getAdvancedMetrics']);
+Route::get('/portfolio/risk-analysis', [AdvancedPortfolioMetricsController::class, 'getRiskAnalysis']);
+Route::get('/portfolio/performance-attribution', [AdvancedPortfolioMetricsController::class, 'getPerformanceAttribution']);
+Route::get('/portfolio/benchmark-comparison', [AdvancedPortfolioMetricsController::class, 'getBenchmarkComparison']);

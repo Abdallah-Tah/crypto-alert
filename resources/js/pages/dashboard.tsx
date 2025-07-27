@@ -1,5 +1,7 @@
 import { PerformanceChart } from '@/components/PerformanceChart';
 import { PortfolioHoldings } from '@/components/PortfolioHoldings';
+import AdvancedPortfolioMetrics from '@/components/dashboard/analytics/AdvancedPortfolioMetrics.jsx';
+import MarketIntelligenceGrid from '@/components/dashboard/analytics/MarketIntelligenceGrid.jsx';
 import PerformanceTimelineChart from '@/components/dashboard/analytics/PerformanceTimelineChart';
 import { PortfolioAllocationChart } from '@/components/dashboard/analytics/PortfolioAllocationChart';
 import { Badge } from '@/components/ui/badge';
@@ -261,6 +263,12 @@ export default function Dashboard({
 
                 {/* Performance Timeline Chart */}
                 <PerformanceTimelineChart className="col-span-full" />
+
+                {/* Market Intelligence Grid */}
+                <MarketIntelligenceGrid />
+
+                {/* Advanced Portfolio Metrics */}
+                <AdvancedPortfolioMetrics holdings={currentPortfolioHoldings} totalValue={currentWatchlistSummary.total_value} />
 
                 {/* Legacy Performance Chart */}
                 <PerformanceChart availableSymbols={topMovers.map((m) => m.symbol)} />
