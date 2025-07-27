@@ -26,7 +26,6 @@ interface WatchlistItem {
 
 interface WatchlistProps {
     watchlist: WatchlistItem[];
-    availableSymbols: string[];
     flash?: {
         success?: string;
         error?: string;
@@ -38,7 +37,7 @@ const breadcrumbs = [
     { title: 'Watchlist', href: '/watchlist' },
 ];
 
-export default function Watchlist({ watchlist, availableSymbols, flash }) {
+export default function Watchlist({ watchlist, flash }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
 
@@ -248,7 +247,6 @@ export default function Watchlist({ watchlist, availableSymbols, flash }) {
                 <WatchlistModal
                     isOpen={isModalOpen}
                     onClose={closeModal}
-                    availableSymbols={availableSymbols}
                     editItem={editingItem}
                     currentPrice={editingItem ? watchlistWithLivePrices.find((item) => item.id === editingItem.id)?.current_price : null}
                 />

@@ -23,11 +23,9 @@ class WatchlistController extends Controller
     {
         $user = Auth::user();
         $watchlist = $this->watchlistService->getUserWatchlist($user);
-        $availableSymbols = $this->ccxtService->getAvailableSymbols();
 
         return Inertia::render('Watchlist', [
             'watchlist' => $watchlist,
-            'availableSymbols' => $availableSymbols,
         ]);
     }
 

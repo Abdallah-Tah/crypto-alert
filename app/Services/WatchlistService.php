@@ -55,9 +55,11 @@ class WatchlistService
                 ];
             }
 
-            // Validate symbol exists
+            // Validate symbol exists in our cryptocurrency database
             $availableSymbols = $this->ccxtService->getAvailableSymbols();
-            if (!in_array($symbol, $availableSymbols)) {
+            $symbolExists = collect($availableSymbols)->pluck('symbol')->contains($symbol);
+
+            if (!$symbolExists) {
                 return [
                     'success' => false,
                     'message' => 'Invalid symbol',

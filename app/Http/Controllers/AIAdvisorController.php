@@ -41,7 +41,7 @@ class AIAdvisorController extends Controller
             'riskLevels' => config('crypto-advisor.ai_advisor.risk_levels'),
             'timeHorizons' => config('crypto-advisor.ai_advisor.time_horizons'),
             'recentSuggestions' => $recentSuggestions,
-            'availableSymbols' => $this->ccxtService->getAvailableSymbols(),
+            'availableSymbols' => collect($this->ccxtService->getAvailableSymbols())->pluck('symbol')->toArray(),
             'portfolioSymbols' => $portfolioSymbols,
         ]);
     }

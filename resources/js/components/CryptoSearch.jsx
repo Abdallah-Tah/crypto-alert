@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
+import { Command, CommandEmpty, CommandList } from '@/components/ui/command';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -12,6 +12,8 @@ export function CryptoSearch({ value, onValueChange, placeholder = 'Search crypt
     const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const debounceRef = useRef();
+
+    console.log('CryptoSearch: Component mounted with value:', value);
 
     // Find selected option
     const selectedOption = options.find((option) => option.symbol === value);
@@ -42,7 +44,19 @@ export function CryptoSearch({ value, onValueChange, placeholder = 'Search crypt
                 if (response.ok) {
                     const data = await response.json();
                     console.log('CryptoSearch: Received data:', data);
-                    setOptions(data.results || []);
+                    console.log('CryptoSearch: Results array:', data.results);
+                    console.log('CryptoSearch: Results length:', data.results?.length);
+
+                    if (data.results && Array.isArray(data.results)) {
+                        // Debug: Log the first few results to see their structure
+                        console.log('CryptoSearch: First result sample:', data.results[0]);
+                        console.log('CryptoSearch: First 3 results:', data.results.slice(0, 3));
+                        setOptions(data.results);
+                        console.log('CryptoSearch: Set options to:', data.results);
+                    } else {
+                        console.log('CryptoSearch: No results array found');
+                        setOptions([]);
+                    }
                 } else {
                     const errorText = await response.text();
                     console.error('CryptoSearch: API response not ok:', response.status, response.statusText, errorText);
@@ -91,7 +105,7 @@ export function CryptoSearch({ value, onValueChange, placeholder = 'Search crypt
                             <>
                                 <Coins className="h-4 w-4 flex-shrink-0 text-green-500" />
                                 <span className="truncate">
-                                    {selectedOption.symbol} - {selectedOption.name}
+                                    {selectedOption.display_symbol || selectedOption.symbol} - {selectedOption.name}
                                 </span>
                             </>
                         ) : (
@@ -105,7 +119,7 @@ export function CryptoSearch({ value, onValueChange, placeholder = 'Search crypt
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="w-full p-0" align="start" style={{ width: 'var(--radix-popover-trigger-width)' }}>
-                <Command shouldFilter={false}>
+                <Command shouldFilter={false} className="rounded-lg border shadow-md">
                     <div className="flex items-center border-b px-3">
                         <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                         <Input
@@ -135,38 +149,60 @@ export function CryptoSearch({ value, onValueChange, placeholder = 'Search crypt
                         )}
 
                         {!loading && options.length > 0 && (
-                            <CommandGroup>
-                                {options.map((option) => (
-                                    <CommandItem
-                                        key={option.symbol}
-                                        value={option.symbol}
-                                        onSelect={(currentValue) => {
-                                            onValueChange(currentValue === value ? '' : currentValue);
-                                            setOpen(false);
-                                        }}
-                                        className="flex cursor-pointer items-center justify-between"
-                                    >
-                                        <div className="flex min-w-0 flex-1 items-center gap-3">
-                                            <div className="flex h-8 w-8 items-center justify-center rounded-full border border-green-500/20 bg-green-500/10">
-                                                <Coins className="h-4 w-4 text-green-500" />
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-mono text-sm font-medium">{option.symbol.replace('/USDT', '')}</span>
-                                                    <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">USDT</span>
+                            <div className="p-1">
+                                {options.map((option, index) => {
+                                    console.log(`CryptoSearch: Rendering option ${index}:`, option);
+                                    return (
+                                        <div
+                                            key={`${option.symbol}-${option.id || option.name}-${index}`}
+                                            onClick={(e) => {
+                                                console.log('CryptoSearch: Direct click on:', option.symbol, 'Option:', option);
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                onValueChange(option.symbol === value ? '' : option.symbol);
+                                                setOpen(false);
+                                            }}
+                                            className="flex cursor-pointer items-center justify-between rounded-md p-2 transition-colors hover:bg-accent hover:text-accent-foreground"
+                                        >
+                                            <div className="flex min-w-0 flex-1 items-center gap-3">
+                                                <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-green-500/20 bg-green-500/10">
+                                                    {option.image_url ? (
+                                                        <img
+                                                            src={option.image_url}
+                                                            alt={option.name}
+                                                            className="h-6 w-6 rounded-full"
+                                                            onError={(e) => {
+                                                                e.target.style.display = 'none';
+                                                            }}
+                                                        />
+                                                    ) : null}
+                                                    <Coins className={`h-4 w-4 text-green-500 ${option.image_url ? 'hidden' : ''}`} />
                                                 </div>
-                                                <p className="truncate text-sm text-muted-foreground">{option.name}</p>
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-mono text-sm font-medium">{option.display_symbol}</span>
+                                                        {option.market_cap_rank && (
+                                                            <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                                                                #{option.market_cap_rank}
+                                                            </span>
+                                                        )}
+                                                        {option.formatted_price && (
+                                                            <span className="text-xs font-medium text-green-600">{option.formatted_price}</span>
+                                                        )}
+                                                    </div>
+                                                    <p className="truncate text-sm text-muted-foreground">{option.name}</p>
+                                                </div>
                                             </div>
+                                            <Check
+                                                className={cn(
+                                                    'ml-2 h-4 w-4 flex-shrink-0 text-green-500',
+                                                    value === option.symbol ? 'opacity-100' : 'opacity-0',
+                                                )}
+                                            />
                                         </div>
-                                        <Check
-                                            className={cn(
-                                                'ml-2 h-4 w-4 flex-shrink-0 text-green-500',
-                                                value === option.symbol ? 'opacity-100' : 'opacity-0',
-                                            )}
-                                        />
-                                    </CommandItem>
-                                ))}
-                            </CommandGroup>
+                                    );
+                                })}
+                            </div>
                         )}
                     </CommandList>
                 </Command>

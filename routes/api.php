@@ -26,4 +26,4 @@ Route::prefix('crypto')->group(function () {
             'search_test' => $searchTest
         ]);
     });
-});
+})->middleware('auth');

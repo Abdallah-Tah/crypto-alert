@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useForm } from '@inertiajs/react';
 import { Coins, DollarSign, Percent, Target } from 'lucide-react';
 
-export function WatchlistModal({ isOpen, onClose, availableSymbols, editItem = null, currentPrice = null }) {
+export function WatchlistModal({ isOpen, onClose, editItem = null, currentPrice = null }) {
     const isEditing = !!editItem;
 
     const { data, setData, post, patch, processing, errors, reset, clearErrors } = useForm({
