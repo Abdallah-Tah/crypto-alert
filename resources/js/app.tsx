@@ -14,6 +14,9 @@ createInertiaApp({
         const root = createRoot(el);
 
         root.render(<App {...props} />);
+
+        // 🔐 Remove Inertia page bootstrap data from DOM
+        el.removeAttribute('data-page');
     },
     progress: {
         color: '#4B5563',

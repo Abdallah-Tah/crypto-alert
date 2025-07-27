@@ -61,13 +61,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/live-prices', [CryptoDataController::class, 'getLivePrices']);
         Route::get('/price/{symbol}', [CryptoDataController::class, 'getCoinPrice']);
     });
+
+    // Public API routes for live crypto data (no auth required for reading prices)
+    Route::prefix('api/crypto')->group(function () {
+        Route::get('/live-prices', [CryptoDataController::class, 'getLivePrices']);
+        Route::get('/price/{symbol}', [CryptoDataController::class, 'getCoinPrice']);
+    });
 });
 
-// Public API routes for live crypto data (no auth required for reading prices)
-Route::prefix('api/crypto')->group(function () {
-    Route::get('/live-prices', [CryptoDataController::class, 'getLivePrices']);
-    Route::get('/price/{symbol}', [CryptoDataController::class, 'getCoinPrice']);
-});
+
 
 require __DIR__ . '/settings.php';
 require __DIR__ . '/auth.php';
