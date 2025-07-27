@@ -2,7 +2,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -175,6 +175,83 @@ export default function AIAdvisor({ riskLevels, timeHorizons, recentSuggestions,
     };
 
     // helper to convert keys to Start Case
+    // Text formatting function for analysis content
+    const formatAnalysisText = (text: string) => {
+        if (!text) return '';
+
+        // Split text into lines and process each
+        const lines = text.split('\n');
+        const formattedSections: React.ReactElement[] = [];
+
+        lines.forEach((line, index) => {
+            const trimmedLine = line.trim();
+
+            if (!trimmedLine) {
+                // Empty line - add spacing
+                formattedSections.push(<div key={`space-${index}`} className="h-2" />);
+                return;
+            }
+
+            // Handle headers (lines starting with #)
+            if (trimmedLine.startsWith('##')) {
+                const headerText = trimmedLine.replace(/^#+\s*/, '');
+                formattedSections.push(
+                    <h3 key={`header-${index}`} className="mt-4 mb-2 border-b border-border pb-1 text-lg font-bold text-blue-700 dark:text-blue-300">
+                        {headerText}
+                    </h3>,
+                );
+            } else if (trimmedLine.startsWith('#')) {
+                const headerText = trimmedLine.replace(/^#+\s*/, '');
+                formattedSections.push(
+                    <h2 key={`header-${index}`} className="mt-5 mb-3 text-xl font-bold text-blue-700 dark:text-blue-300">
+                        {headerText}
+                    </h2>,
+                );
+            }
+            // Handle bullet points
+            else if (trimmedLine.startsWith('-') || trimmedLine.startsWith('•')) {
+                const bulletText = trimmedLine.replace(/^[-•]\s*/, '');
+                formattedSections.push(
+                    <div key={`bullet-${index}`} className="mb-1 ml-4 flex items-start gap-2">
+                        <span className="mt-1 text-blue-600 dark:text-blue-400">•</span>
+                        <span className="leading-relaxed text-foreground">{bulletText}</span>
+                    </div>,
+                );
+            }
+            // Handle bold text patterns
+            else if (trimmedLine.includes('**') || trimmedLine.includes('*')) {
+                const formattedText = trimmedLine
+                    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-foreground">$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em class="italic text-foreground">$1</em>');
+
+                formattedSections.push(
+                    <p key={`text-${index}`} className="mb-2 leading-relaxed text-foreground" dangerouslySetInnerHTML={{ __html: formattedText }} />,
+                );
+            }
+            // Handle key-value pairs (lines with ":")
+            else if (trimmedLine.includes(':') && !trimmedLine.endsWith(':')) {
+                const [key, ...valueParts] = trimmedLine.split(':');
+                const value = valueParts.join(':').trim();
+                formattedSections.push(
+                    <div key={`kv-${index}`} className="mb-2 flex flex-col gap-1 sm:flex-row sm:gap-3">
+                        <span className="min-w-fit font-semibold text-blue-700 dark:text-blue-300">{key.trim()}:</span>
+                        <span className="text-foreground">{value}</span>
+                    </div>,
+                );
+            }
+            // Regular paragraph text
+            else {
+                formattedSections.push(
+                    <p key={`para-${index}`} className="mb-2 leading-relaxed text-foreground">
+                        {trimmedLine}
+                    </p>,
+                );
+            }
+        });
+
+        return <div className="space-y-1">{formattedSections}</div>;
+    };
+
     const startCase = (str: string) => str.replace(/[_-]/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
 
     return (
@@ -709,217 +786,368 @@ export default function AIAdvisor({ riskLevels, timeHorizons, recentSuggestions,
                             <>
                                 {/* Search and Controls */}
                                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                                    <div className="relative">
+                                    <div className="relative flex-1 sm:max-w-sm">
                                         <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                                         <Input
                                             placeholder="Search analyses..."
                                             value={searchTerm}
                                             onChange={(e) => setSearchTerm(e.target.value)}
-                                            className="w-80 pl-10"
+                                            className="w-full pl-10"
                                         />
                                     </div>
-                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                        Showing {paginatedData.length} of {filteredAndSortedData.length} results
+                                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                                        <span>
+                                            Showing {paginatedData.length} of {filteredAndSortedData.length} results
+                                        </span>
                                     </div>
                                 </div>
 
-                                {/* Professional Table */}
+                                {/* Mobile-First Professional Table */}
                                 <div className="rounded-lg border bg-white dark:bg-gray-950">
-                                    <div className="relative w-full overflow-auto">
-                                        <table className="w-full caption-bottom text-sm">
-                                            <thead className="[&_tr]:border-b">
-                                                <tr className="border-b bg-muted/50">
-                                                    <th className="h-12 w-12 px-4 text-left align-middle font-medium text-muted-foreground">#</th>
-                                                    <th
-                                                        className="h-12 cursor-pointer px-4 text-left align-middle font-medium text-muted-foreground transition-colors hover:bg-muted/80"
-                                                        onClick={() => handleSort('symbol')}
-                                                    >
+                                    {/* Mobile Card View */}
+                                    <div className="block md:hidden">
+                                        <div className="divide-y">
+                                            {paginatedData.map((suggestion, index) => (
+                                                <div key={`mobile-${suggestion.id}`} className="space-y-3 p-4">
+                                                    <div className="flex items-center justify-between">
                                                         <div className="flex items-center gap-2">
-                                                            Asset
-                                                            {sortField === 'symbol' && (
-                                                                <span className="text-xs">{sortDirection === 'asc' ? '↑' : '↓'}</span>
-                                                            )}
-                                                        </div>
-                                                    </th>
-                                                    <th
-                                                        className="h-12 cursor-pointer px-4 text-left align-middle font-medium text-muted-foreground transition-colors hover:bg-muted/80"
-                                                        onClick={() => handleSort('risk_level')}
-                                                    >
-                                                        <div className="flex items-center gap-2">
-                                                            Risk Level
-                                                            {sortField === 'risk_level' && (
-                                                                <span className="text-xs">{sortDirection === 'asc' ? '↑' : '↓'}</span>
-                                                            )}
-                                                        </div>
-                                                    </th>
-                                                    <th
-                                                        className="h-12 cursor-pointer px-4 text-left align-middle font-medium text-muted-foreground transition-colors hover:bg-muted/80"
-                                                        onClick={() => handleSort('time_horizon')}
-                                                    >
-                                                        <div className="flex items-center gap-2">
-                                                            Time Horizon
-                                                            {sortField === 'time_horizon' && (
-                                                                <span className="text-xs">{sortDirection === 'asc' ? '↑' : '↓'}</span>
-                                                            )}
-                                                        </div>
-                                                    </th>
-                                                    <th
-                                                        className="h-12 cursor-pointer px-4 text-left align-middle font-medium text-muted-foreground transition-colors hover:bg-muted/80"
-                                                        onClick={() => handleSort('created_at')}
-                                                    >
-                                                        <div className="flex items-center gap-2">
-                                                            Date
-                                                            {sortField === 'created_at' && (
-                                                                <span className="text-xs">{sortDirection === 'asc' ? '↑' : '↓'}</span>
-                                                            )}
-                                                        </div>
-                                                    </th>
-                                                    <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground">Analysis</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="[&_tr:last-child]:border-0">
-                                                {paginatedData.map((suggestion, index) => (
-                                                    <tr key={suggestion.id} className="border-b transition-colors hover:bg-muted/50">
-                                                        <td className="p-4 align-middle font-medium">
-                                                            {(currentPage - 1) * itemsPerPage + index + 1}
-                                                        </td>
-                                                        <td className="p-4 align-middle">
+                                                            <span className="text-sm font-medium text-muted-foreground">
+                                                                #{(currentPage - 1) * itemsPerPage + index + 1}
+                                                            </span>
                                                             <Badge
                                                                 variant="outline"
                                                                 className="bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"
                                                             >
                                                                 {suggestion.symbol}
                                                             </Badge>
-                                                        </td>
-                                                        <td className="p-4 align-middle">
-                                                            <Badge variant="secondary" className="text-xs font-medium">
-                                                                {suggestion.risk_level.charAt(0).toUpperCase() + suggestion.risk_level.slice(1)}
-                                                            </Badge>
-                                                        </td>
-                                                        <td className="p-4 align-middle">
-                                                            <Badge variant="secondary" className="text-xs font-medium">
-                                                                {suggestion.time_horizon.charAt(0).toUpperCase() + suggestion.time_horizon.slice(1)}
-                                                                -term
-                                                            </Badge>
-                                                        </td>
-                                                        <td className="p-4 align-middle text-sm text-muted-foreground">
-                                                            <div>
-                                                                {new Date(suggestion.created_at).toLocaleDateString('en-US', {
-                                                                    month: 'short',
-                                                                    day: 'numeric',
-                                                                    year: 'numeric',
-                                                                })}
-                                                            </div>
-                                                            <div className="text-xs">
-                                                                {new Date(suggestion.created_at).toLocaleTimeString('en-US', {
-                                                                    hour: '2-digit',
-                                                                    minute: '2-digit',
-                                                                })}
-                                                            </div>
-                                                        </td>
-                                                        <td className="p-4 text-center align-middle">
-                                                            <Dialog>
-                                                                <DialogTrigger asChild>
-                                                                    <Button variant="outline" size="sm" className="h-8 w-8 p-0">
-                                                                        <Eye className="h-4 w-4" />
-                                                                    </Button>
-                                                                </DialogTrigger>
-                                                                <DialogContent className="max-h-[80vh] max-w-4xl overflow-y-auto">
-                                                                    <DialogHeader>
-                                                                        <DialogTitle className="flex items-center gap-3">
+                                                        </div>
+                                                        <Dialog>
+                                                            <DialogTrigger asChild>
+                                                                <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                                                                    <Eye className="h-4 w-4" />
+                                                                </Button>
+                                                            </DialogTrigger>
+                                                            <DialogContent className="max-h-[90vh] max-w-[95vw] overflow-y-auto sm:max-w-4xl">
+                                                                <DialogHeader className="space-y-3">
+                                                                    <DialogTitle className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
+                                                                        <div className="flex items-center gap-2">
                                                                             <div className="rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 p-2">
                                                                                 <Lightbulb className="h-5 w-5 text-white" />
                                                                             </div>
-                                                                            Investment Analysis for {suggestion.symbol}
-                                                                        </DialogTitle>
-                                                                        <DialogDescription className="flex items-center gap-4">
-                                                                            <Badge variant="outline">{suggestion.symbol}</Badge>
-                                                                            <Badge variant="secondary">
-                                                                                {suggestion.risk_level.charAt(0).toUpperCase() +
-                                                                                    suggestion.risk_level.slice(1)}{' '}
-                                                                                Risk
-                                                                            </Badge>
-                                                                            <Badge variant="secondary">
-                                                                                {suggestion.time_horizon.charAt(0).toUpperCase() +
-                                                                                    suggestion.time_horizon.slice(1)}
-                                                                                -term
-                                                                            </Badge>
-                                                                            <span className="text-sm text-muted-foreground">
-                                                                                {new Date(suggestion.created_at).toLocaleDateString('en-US', {
-                                                                                    weekday: 'long',
-                                                                                    year: 'numeric',
-                                                                                    month: 'long',
-                                                                                    day: 'numeric',
-                                                                                })}
+                                                                            <span className="text-lg font-semibold sm:text-xl">
+                                                                                Investment Analysis
                                                                             </span>
-                                                                        </DialogDescription>
-                                                                    </DialogHeader>
-                                                                    <div className="mt-6">
-                                                                        <div className="rounded-lg border bg-muted/20 p-6">
-                                                                            <h4 className="mb-3 font-semibold">Professional Analysis Report</h4>
-                                                                            <div className="prose prose-sm dark:prose-invert max-w-none">
-                                                                                <div className="leading-relaxed whitespace-pre-wrap text-foreground">
-                                                                                    {suggestion.suggestion}
+                                                                        </div>
+                                                                    </DialogTitle>
+                                                                    <div className="flex flex-wrap items-center gap-2">
+                                                                        <Badge variant="outline" className="text-sm">
+                                                                            {suggestion.symbol}
+                                                                        </Badge>
+                                                                        <Badge variant="secondary">
+                                                                            {suggestion.risk_level.charAt(0).toUpperCase() +
+                                                                                suggestion.risk_level.slice(1)}{' '}
+                                                                            Risk
+                                                                        </Badge>
+                                                                        <Badge variant="secondary">
+                                                                            {suggestion.time_horizon.charAt(0).toUpperCase() +
+                                                                                suggestion.time_horizon.slice(1)}
+                                                                            -term
+                                                                        </Badge>
+                                                                    </div>
+                                                                    <div className="text-sm text-muted-foreground">
+                                                                        {new Date(suggestion.created_at).toLocaleDateString('en-US', {
+                                                                            weekday: 'long',
+                                                                            month: 'long',
+                                                                            day: 'numeric',
+                                                                            year: 'numeric',
+                                                                            hour: '2-digit',
+                                                                            minute: '2-digit',
+                                                                        })}
+                                                                    </div>
+                                                                </DialogHeader>
+                                                                <div className="mt-6">
+                                                                    <div className="rounded-lg border bg-muted/20 p-4 sm:p-6">
+                                                                        <h4 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+                                                                            <span className="rounded-md bg-blue-100 p-1 dark:bg-blue-900/30">
+                                                                                <Brain className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                                                            </span>
+                                                                            Professional Analysis Report
+                                                                        </h4>
+                                                                        <div className="max-w-none">{formatAnalysisText(suggestion.suggestion)}</div>
+                                                                    </div>
+                                                                    <div className="mt-4 flex flex-col gap-2 rounded-lg bg-muted/10 p-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className="rounded bg-green-100 px-2 py-1 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                                                                                AI-Powered
+                                                                            </span>
+                                                                            <span>Generated using {suggestion.model_used}</span>
+                                                                        </div>
+                                                                        <span className="font-mono">Analysis ID: #{suggestion.id}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </DialogContent>
+                                                        </Dialog>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-3 text-sm">
+                                                        <div>
+                                                            <span className="text-muted-foreground">Risk:</span>
+                                                            <Badge variant="secondary" className="ml-2 text-xs">
+                                                                {suggestion.risk_level.charAt(0).toUpperCase() + suggestion.risk_level.slice(1)}
+                                                            </Badge>
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-muted-foreground">Horizon:</span>
+                                                            <Badge variant="secondary" className="ml-2 text-xs">
+                                                                {suggestion.time_horizon.charAt(0).toUpperCase() + suggestion.time_horizon.slice(1)}
+                                                                -term
+                                                            </Badge>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-sm text-muted-foreground">
+                                                        <div className="flex items-center gap-1">
+                                                            <Clock className="h-3 w-3" />
+                                                            {new Date(suggestion.created_at).toLocaleDateString('en-US', {
+                                                                month: 'short',
+                                                                day: 'numeric',
+                                                                year: 'numeric',
+                                                                hour: '2-digit',
+                                                                minute: '2-digit',
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Desktop Table View */}
+                                    <div className="hidden md:block">
+                                        <div className="relative w-full overflow-auto">
+                                            <table className="w-full caption-bottom text-sm">
+                                                <thead className="[&_tr]:border-b">
+                                                    <tr className="border-b bg-muted/50">
+                                                        <th className="h-12 w-12 px-4 text-left align-middle font-medium text-muted-foreground">#</th>
+                                                        <th
+                                                            className="h-12 min-w-[100px] cursor-pointer px-4 text-left align-middle font-medium text-muted-foreground transition-colors hover:bg-muted/80"
+                                                            onClick={() => handleSort('symbol')}
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                Asset
+                                                                {sortField === 'symbol' && (
+                                                                    <span className="text-xs">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                                                                )}
+                                                            </div>
+                                                        </th>
+                                                        <th
+                                                            className="h-12 min-w-[120px] cursor-pointer px-4 text-left align-middle font-medium text-muted-foreground transition-colors hover:bg-muted/80"
+                                                            onClick={() => handleSort('risk_level')}
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                Risk Level
+                                                                {sortField === 'risk_level' && (
+                                                                    <span className="text-xs">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                                                                )}
+                                                            </div>
+                                                        </th>
+                                                        <th
+                                                            className="h-12 min-w-[130px] cursor-pointer px-4 text-left align-middle font-medium text-muted-foreground transition-colors hover:bg-muted/80"
+                                                            onClick={() => handleSort('time_horizon')}
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                Time Horizon
+                                                                {sortField === 'time_horizon' && (
+                                                                    <span className="text-xs">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                                                                )}
+                                                            </div>
+                                                        </th>
+                                                        <th
+                                                            className="h-12 min-w-[120px] cursor-pointer px-4 text-left align-middle font-medium text-muted-foreground transition-colors hover:bg-muted/80"
+                                                            onClick={() => handleSort('created_at')}
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                Date
+                                                                {sortField === 'created_at' && (
+                                                                    <span className="text-xs">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                                                                )}
+                                                            </div>
+                                                        </th>
+                                                        <th className="h-12 w-[100px] px-4 text-center align-middle font-medium text-muted-foreground">
+                                                            Analysis
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="[&_tr:last-child]:border-0">
+                                                    {paginatedData.map((suggestion, index) => (
+                                                        <tr key={`desktop-${suggestion.id}`} className="border-b transition-colors hover:bg-muted/50">
+                                                            <td className="p-4 align-middle font-medium">
+                                                                {(currentPage - 1) * itemsPerPage + index + 1}
+                                                            </td>
+                                                            <td className="p-4 align-middle">
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    className="bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"
+                                                                >
+                                                                    {suggestion.symbol}
+                                                                </Badge>
+                                                            </td>
+                                                            <td className="p-4 align-middle">
+                                                                <Badge variant="secondary" className="text-xs font-medium">
+                                                                    {suggestion.risk_level.charAt(0).toUpperCase() + suggestion.risk_level.slice(1)}
+                                                                </Badge>
+                                                            </td>
+                                                            <td className="p-4 align-middle">
+                                                                <Badge variant="secondary" className="text-xs font-medium">
+                                                                    {suggestion.time_horizon.charAt(0).toUpperCase() +
+                                                                        suggestion.time_horizon.slice(1)}
+                                                                    -term
+                                                                </Badge>
+                                                            </td>
+                                                            <td className="p-4 align-middle text-sm text-muted-foreground">
+                                                                <div>
+                                                                    {new Date(suggestion.created_at).toLocaleDateString('en-US', {
+                                                                        month: 'short',
+                                                                        day: 'numeric',
+                                                                        year: 'numeric',
+                                                                    })}
+                                                                </div>
+                                                                <div className="text-xs">
+                                                                    {new Date(suggestion.created_at).toLocaleTimeString('en-US', {
+                                                                        hour: '2-digit',
+                                                                        minute: '2-digit',
+                                                                    })}
+                                                                </div>
+                                                            </td>
+                                                            <td className="p-4 text-center align-middle">
+                                                                <Dialog>
+                                                                    <DialogTrigger asChild>
+                                                                        <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                                                                            <Eye className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </DialogTrigger>
+                                                                    <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
+                                                                        <DialogHeader className="space-y-3">
+                                                                            <DialogTitle className="flex items-center gap-3">
+                                                                                <div className="rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 p-2">
+                                                                                    <Lightbulb className="h-5 w-5 text-white" />
+                                                                                </div>
+                                                                                <span className="text-xl font-semibold">
+                                                                                    Investment Analysis for {suggestion.symbol}
+                                                                                </span>
+                                                                            </DialogTitle>
+                                                                            <div className="flex flex-wrap items-center gap-3">
+                                                                                <Badge variant="outline" className="text-sm">
+                                                                                    {suggestion.symbol}
+                                                                                </Badge>
+                                                                                <Badge variant="secondary">
+                                                                                    {suggestion.risk_level.charAt(0).toUpperCase() +
+                                                                                        suggestion.risk_level.slice(1)}{' '}
+                                                                                    Risk
+                                                                                </Badge>
+                                                                                <Badge variant="secondary">
+                                                                                    {suggestion.time_horizon.charAt(0).toUpperCase() +
+                                                                                        suggestion.time_horizon.slice(1)}
+                                                                                    -term
+                                                                                </Badge>
+                                                                                <span className="text-sm text-muted-foreground">
+                                                                                    {new Date(suggestion.created_at).toLocaleDateString('en-US', {
+                                                                                        weekday: 'long',
+                                                                                        year: 'numeric',
+                                                                                        month: 'long',
+                                                                                        day: 'numeric',
+                                                                                    })}
+                                                                                </span>
+                                                                            </div>
+                                                                        </DialogHeader>
+                                                                        <div className="mt-6">
+                                                                            <div className="rounded-lg border bg-muted/20 p-6">
+                                                                                <h4 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+                                                                                    <span className="rounded-md bg-blue-100 p-1 dark:bg-blue-900/30">
+                                                                                        <Brain className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                                                                    </span>
+                                                                                    Professional Analysis Report
+                                                                                </h4>
+                                                                                <div className="max-w-none">
+                                                                                    {formatAnalysisText(suggestion.suggestion)}
                                                                                 </div>
                                                                             </div>
+                                                                            <div className="mt-4 flex items-center justify-between rounded-lg bg-muted/10 p-3 text-xs text-muted-foreground">
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <span className="rounded bg-green-100 px-2 py-1 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                                                                                        AI-Powered
+                                                                                    </span>
+                                                                                    <span>Generated using {suggestion.model_used}</span>
+                                                                                </div>
+                                                                                <span className="font-mono">Analysis ID: #{suggestion.id}</span>
+                                                                            </div>
                                                                         </div>
-                                                                        <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
-                                                                            <span>Generated using {suggestion.model_used}</span>
-                                                                            <span>Analysis ID: #{suggestion.id}</span>
-                                                                        </div>
-                                                                    </div>
-                                                                </DialogContent>
-                                                            </Dialog>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
+                                                                    </DialogContent>
+                                                                </Dialog>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 </div>
 
-                                {/* Pagination */}
+                                {/* Responsive Pagination */}
                                 {totalPages > 1 && (
-                                    <div className="flex items-center justify-between">
+                                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                                         <div className="text-sm text-muted-foreground">
                                             Page {currentPage} of {totalPages}
                                         </div>
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center justify-center gap-2">
                                             <Button
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                                                 disabled={currentPage === 1}
+                                                className="flex items-center gap-1"
                                             >
                                                 <ChevronLeft className="h-4 w-4" />
-                                                Previous
+                                                <span className="hidden sm:inline">Previous</span>
                                             </Button>
+
+                                            {/* Mobile: Show only current page and adjacent */}
                                             <div className="flex items-center gap-1">
-                                                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                                                    .filter((page) => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1)
-                                                    .map((page, index, filteredPages) => (
-                                                        <div key={page} className="flex items-center">
-                                                            {index > 0 && filteredPages[index - 1] !== page - 1 && (
-                                                                <span className="px-2 text-muted-foreground">...</span>
-                                                            )}
-                                                            <Button
-                                                                variant={currentPage === page ? 'default' : 'outline'}
-                                                                size="sm"
-                                                                className="h-8 w-8 p-0"
-                                                                onClick={() => setCurrentPage(page)}
-                                                            >
-                                                                {page}
-                                                            </Button>
-                                                        </div>
-                                                    ))}
+                                                {/* Desktop pagination */}
+                                                <div className="hidden items-center gap-1 sm:flex">
+                                                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                                        .filter((page) => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1)
+                                                        .map((page, index, filteredPages) => (
+                                                            <div key={page} className="flex items-center">
+                                                                {index > 0 && filteredPages[index - 1] !== page - 1 && (
+                                                                    <span className="px-2 text-muted-foreground">...</span>
+                                                                )}
+                                                                <Button
+                                                                    variant={currentPage === page ? 'default' : 'outline'}
+                                                                    size="sm"
+                                                                    className="h-8 w-8 p-0"
+                                                                    onClick={() => setCurrentPage(page)}
+                                                                >
+                                                                    {page}
+                                                                </Button>
+                                                            </div>
+                                                        ))}
+                                                </div>
+
+                                                {/* Mobile pagination - just current page */}
+                                                <div className="sm:hidden">
+                                                    <Button variant="default" size="sm" className="h-8 min-w-[3rem] px-2">
+                                                        {currentPage}
+                                                    </Button>
+                                                </div>
                                             </div>
+
                                             <Button
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                                                 disabled={currentPage === totalPages}
+                                                className="flex items-center gap-1"
                                             >
-                                                Next
+                                                <span className="hidden sm:inline">Next</span>
                                                 <ChevronRight className="h-4 w-4" />
                                             </Button>
                                         </div>
