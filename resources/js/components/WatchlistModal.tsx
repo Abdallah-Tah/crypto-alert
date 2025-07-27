@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useForm } from '@inertiajs/react';
 import { Coins, DollarSign, Percent, Target } from 'lucide-react';
+import { useEffect } from 'react';
 
 export function WatchlistModal({ isOpen, onClose, editItem = null, currentPrice = null }) {
     const isEditing = !!editItem;
@@ -20,6 +21,32 @@ export function WatchlistModal({ isOpen, onClose, editItem = null, currentPrice 
         alert_type: editItem?.alert_type || 'market_price',
         notes: editItem?.notes || '',
     });
+
+    // Update form data when editItem changes
+    useEffect(() => {
+        if (editItem) {
+            setData({
+                symbol: editItem.symbol || '',
+                alert_price: editItem.alert_price?.toString() || '',
+                holdings_amount: editItem.holdings_amount?.toString() || '',
+                holdings_type: editItem.holdings_type || 'usd_value',
+                purchase_price: editItem.purchase_price?.toString() || '',
+                alert_type: editItem.alert_type || 'market_price',
+                notes: editItem.notes || '',
+            });
+        } else {
+            // Reset form for new item
+            setData({
+                symbol: '',
+                alert_price: '',
+                holdings_amount: '',
+                holdings_type: 'usd_value',
+                purchase_price: '',
+                alert_type: 'market_price',
+                notes: '',
+            });
+        }
+    }, [editItem, setData]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
