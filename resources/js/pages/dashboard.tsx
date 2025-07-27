@@ -81,9 +81,14 @@ export default function Dashboard({
         isActive,
     } = useLivePrices({ interval: 2000 }); // Update every 2 seconds for real-time data
 
-    // Use live data for top movers, but keep initial watchlist summary
+    // Use live data for top movers and watchlist summary
     const currentTopMovers = liveData?.topMovers || topMovers;
-    const currentWatchlistSummary = watchlistSummary; // Always use initial data for user-specific info
+    const currentWatchlistSummary = liveData?.watchlistSummary || watchlistSummary;
+
+    // Debug logging for live data
+    console.log('Dashboard: Live data received:', liveData);
+    console.log('Dashboard: Current watchlist summary:', currentWatchlistSummary);
+    console.log('Dashboard: Live loading:', liveLoading);
 
     const formatPrice = (price: number): string => {
         if (!price) return '$0.00';
