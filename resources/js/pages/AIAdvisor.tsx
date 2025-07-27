@@ -6,10 +6,25 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
-import { AlertTriangle, Brain, ChevronLeft, ChevronRight, Clock, Eye, Lightbulb, Search, Sparkles, Target, TrendingUp, X } from 'lucide-react';
+import {
+    AlertTriangle,
+    Brain,
+    ChevronLeft,
+    ChevronRight,
+    Clock,
+    Eye,
+    Lightbulb,
+    Loader2,
+    Search,
+    Sparkles,
+    Target,
+    TrendingUp,
+    X,
+} from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 interface AISuggestion {
@@ -46,6 +61,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function AIAdvisor({ riskLevels, timeHorizons, recentSuggestions, availableSymbols, portfolioSymbols, flash }: AIAdvisorProps) {
+    const { toast } = useToast();
     const [isGenerating, setIsGenerating] = useState(false);
     const [marketSentiment, setMarketSentiment] = useState(null);
     const [loadingSentiment, setLoadingSentiment] = useState(false);
@@ -121,6 +137,9 @@ export default function AIAdvisor({ riskLevels, timeHorizons, recentSuggestions,
         e.preventDefault();
         setIsGenerating(true);
 
+        // Show loading toast
+        const loadingToastId = toast.loading('Generating AI analysis...');
+
         // Prepare the data to submit
         const submitData = {
             symbol: data.symbol,
@@ -134,9 +153,20 @@ export default function AIAdvisor({ riskLevels, timeHorizons, recentSuggestions,
         router.post('/advisor/generate', submitData, {
             onSuccess: () => {
                 setIsGenerating(false);
+                toast.dismiss(loadingToastId);
+                toast.success('AI analysis generated successfully!', {
+                    description: 'Your investment advice has been generated and added to your history.',
+                });
             },
-            onError: () => {
+            onError: (errors) => {
                 setIsGenerating(false);
+                toast.dismiss(loadingToastId);
+
+                // Handle specific field errors or show general error
+                const errorMessage = errors.symbol || errors.risk_level || errors.time_horizon || 'Failed to generate analysis. Please try again.';
+                toast.error('Generation failed', {
+                    description: errorMessage,
+                });
             },
         });
     };
@@ -151,40 +181,125 @@ export default function AIAdvisor({ riskLevels, timeHorizons, recentSuggestions,
 
     const handleAnalyzePortfolio = (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Show loading toast
+        const loadingToastId = toast.loading('Analyzing portfolio...');
+
         portfolioForm.post('/advisor/analyze-portfolio', {
             onSuccess: () => {
-                // Success handled by flash message
+                toast.dismiss(loadingToastId);
+                toast.success('Portfolio analysis complete!', {
+                    description: 'Your portfolio has been analyzed successfully.',
+                });
             },
-            onError: () => {
-                // Error handled by flash message
+            onError: (errors) => {
+                toast.dismiss(loadingToastId);
+
+                // Handle specific field errors or show general error
+                const errorMessage = errors.risk_level || 'Failed to analyze portfolio. Please try again.';
+                toast.error('Analysis failed', {
+                    description: errorMessage,
+                });
             },
         });
     };
 
     const fetchMarketSentiment = async () => {
         setLoadingSentiment(true);
+
+        // Show loading toast
+        const loadingToastId = toast.loading('Fetching market sentiment...');
+
         try {
             const response = await fetch('/advisor/market-sentiment');
             const data = await response.json();
             setMarketSentiment(data);
-        } catch {
-            // Error handled silently
+
+            toast.dismiss(loadingToastId);
+            toast.success('Market sentiment updated!', {
+                description: 'Latest market data has been retrieved.',
+            });
+        } catch (error) {
+            toast.dismiss(loadingToastId);
+            toast.error('Failed to fetch market sentiment', {
+                description: 'Could not retrieve market data. Please try again later.',
+            });
         } finally {
             setLoadingSentiment(false);
         }
     };
 
-    // helper to convert keys to Start Case
-    // Text formatting function for analysis content
+    // Safe text formatting function for analysis content
     const formatAnalysisText = (text: string) => {
         if (!text) return '';
 
-        // Function to convert markdown to HTML
-        const convertMarkdownToHTML = (text: string) => {
-            return text
-                .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-foreground">$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em class="italic text-foreground">$1</em>')
-                .replace(/`(.*?)`/g, '<code class="rounded bg-muted px-1 py-0.5 text-sm">$1</code>');
+        // Safe function to render markdown elements
+        const renderMarkdownElements = (text: string): React.ReactElement[] => {
+            const elements: React.ReactElement[] = [];
+            let remaining = text;
+            let elementKey = 0;
+
+            // Process bold text (**text**)
+            const boldRegex = /\*\*(.*?)\*\*/g;
+            let match;
+            let lastIndex = 0;
+
+            while ((match = boldRegex.exec(text)) !== null) {
+                // Add text before the match
+                if (match.index > lastIndex) {
+                    const beforeText = text.slice(lastIndex, match.index);
+                    if (beforeText) {
+                        elements.push(<span key={`text-${elementKey++}`}>{beforeText}</span>);
+                    }
+                }
+                // Add bold element
+                elements.push(
+                    <strong key={`bold-${elementKey++}`} className="font-semibold text-foreground">
+                        {match[1]}
+                    </strong>,
+                );
+                lastIndex = match.index + match[0].length;
+            }
+
+            // Add remaining text
+            if (lastIndex < text.length) {
+                const remainingText = text.slice(lastIndex);
+                if (remainingText) {
+                    // Process italic text in remaining text
+                    const parts = remainingText.split(/\*(.*?)\*/g);
+                    parts.forEach((part, index) => {
+                        if (index % 2 === 0) {
+                            // Regular text
+                            if (part) {
+                                // Process code blocks
+                                const codeParts = part.split(/`(.*?)`/g);
+                                codeParts.forEach((codePart, codeIndex) => {
+                                    if (codeIndex % 2 === 0) {
+                                        // Regular text
+                                        if (codePart) elements.push(<span key={`text-${elementKey++}`}>{codePart}</span>);
+                                    } else {
+                                        // Code text
+                                        elements.push(
+                                            <code key={`code-${elementKey++}`} className="rounded bg-muted px-1 py-0.5 text-sm">
+                                                {codePart}
+                                            </code>,
+                                        );
+                                    }
+                                });
+                            }
+                        } else {
+                            // Italic text
+                            elements.push(
+                                <em key={`italic-${elementKey++}`} className="text-foreground italic">
+                                    {part}
+                                </em>,
+                            );
+                        }
+                    });
+                }
+            }
+
+            return elements;
         };
 
         // Split text into lines and process each
@@ -219,11 +334,10 @@ export default function AIAdvisor({ riskLevels, timeHorizons, recentSuggestions,
             // Handle bullet points
             else if (trimmedLine.startsWith('-') || trimmedLine.startsWith('•')) {
                 const bulletText = trimmedLine.replace(/^[-•]\s*/, '');
-                const formattedBulletText = convertMarkdownToHTML(bulletText);
                 formattedSections.push(
                     <div key={`bullet-${index}`} className="mb-1 ml-4 flex items-start gap-2">
                         <span className="mt-1 text-blue-600 dark:text-blue-400">•</span>
-                        <span className="leading-relaxed text-foreground" dangerouslySetInnerHTML={{ __html: formattedBulletText }} />
+                        <span className="leading-relaxed text-foreground">{renderMarkdownElements(bulletText)}</span>
                     </div>,
                 );
             }
@@ -231,24 +345,20 @@ export default function AIAdvisor({ riskLevels, timeHorizons, recentSuggestions,
             else if (trimmedLine.includes(':') && !trimmedLine.endsWith(':')) {
                 const [key, ...valueParts] = trimmedLine.split(':');
                 const value = valueParts.join(':').trim();
-                const formattedKey = convertMarkdownToHTML(key.trim());
-                const formattedValue = convertMarkdownToHTML(value);
 
                 formattedSections.push(
                     <div key={`kv-${index}`} className="mb-2 flex flex-col gap-1 sm:flex-row sm:gap-3">
-                        <span
-                            className="min-w-fit font-semibold text-blue-700 dark:text-blue-300"
-                            dangerouslySetInnerHTML={{ __html: formattedKey + ':' }}
-                        />
-                        <span className="text-foreground" dangerouslySetInnerHTML={{ __html: formattedValue }} />
+                        <span className="min-w-fit font-semibold text-blue-700 dark:text-blue-300">{renderMarkdownElements(key.trim())}:</span>
+                        <span className="text-foreground">{renderMarkdownElements(value)}</span>
                     </div>,
                 );
             }
-            // Regular paragraph text - always process for markdown
+            // Regular paragraph text
             else {
-                const formattedText = convertMarkdownToHTML(trimmedLine);
                 formattedSections.push(
-                    <p key={`para-${index}`} className="mb-2 leading-relaxed text-foreground" dangerouslySetInnerHTML={{ __html: formattedText }} />,
+                    <p key={`para-${index}`} className="mb-2 leading-relaxed text-foreground">
+                        {renderMarkdownElements(trimmedLine)}
+                    </p>,
                 );
             }
         });
@@ -565,7 +675,7 @@ export default function AIAdvisor({ riskLevels, timeHorizons, recentSuggestions,
                                 >
                                     {isGenerating ? (
                                         <>
-                                            <div className="mr-3 h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                                            <Loader2 className="mr-3 h-5 w-5 animate-spin" />
                                             Analyzing Market Data...
                                         </>
                                     ) : (
@@ -637,7 +747,7 @@ export default function AIAdvisor({ riskLevels, timeHorizons, recentSuggestions,
                                 >
                                     {portfolioForm.processing ? (
                                         <>
-                                            <div className="mr-3 h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                                            <Loader2 className="mr-3 h-5 w-5 animate-spin" />
                                             Analyzing Portfolio...
                                         </>
                                     ) : (
@@ -674,7 +784,7 @@ export default function AIAdvisor({ riskLevels, timeHorizons, recentSuggestions,
                             <Button onClick={fetchMarketSentiment} disabled={loadingSentiment} variant="outline" size="default" className="min-w-32">
                                 {loadingSentiment ? (
                                     <>
-                                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-foreground border-t-background" />
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                         Analyzing...
                                     </>
                                 ) : (
@@ -831,7 +941,7 @@ export default function AIAdvisor({ riskLevels, timeHorizons, recentSuggestions,
                                                                     <Eye className="h-4 w-4" />
                                                                 </Button>
                                                             </DialogTrigger>
-                                                            <DialogContent className="max-h-[90vh] max-w-[95vw] overflow-y-auto sm:max-w-4xl">
+                                                            <DialogContent className="max-h-[95vh] w-[95vw] max-w-[95vw] overflow-y-auto sm:max-h-[90vh] sm:w-auto sm:max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl">
                                                                 <DialogHeader className="space-y-3">
                                                                     <DialogTitle className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
                                                                         <div className="flex items-center gap-2">
@@ -869,24 +979,28 @@ export default function AIAdvisor({ riskLevels, timeHorizons, recentSuggestions,
                                                                         })}
                                                                     </div>
                                                                 </DialogHeader>
-                                                                <div className="mt-6">
-                                                                    <div className="rounded-lg border bg-muted/20 p-4 sm:p-6">
-                                                                        <h4 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+                                                                <div className="mt-4 sm:mt-6">
+                                                                    <div className="rounded-lg border bg-muted/20 p-3 sm:p-4 lg:p-6">
+                                                                        <h4 className="mb-3 flex flex-col gap-2 text-base font-semibold sm:mb-4 sm:flex-row sm:items-center sm:gap-2 sm:text-lg">
                                                                             <span className="rounded-md bg-blue-100 p-1 dark:bg-blue-900/30">
                                                                                 <Brain className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                                                                             </span>
                                                                             Professional Analysis Report
                                                                         </h4>
-                                                                        <div className="max-w-none">{formatAnalysisText(suggestion.suggestion)}</div>
+                                                                        <div className="max-w-none overflow-hidden text-sm sm:text-base">
+                                                                            {formatAnalysisText(suggestion.suggestion)}
+                                                                        </div>
                                                                     </div>
-                                                                    <div className="mt-4 flex flex-col gap-2 rounded-lg bg-muted/10 p-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-                                                                        <div className="flex items-center gap-2">
-                                                                            <span className="rounded bg-green-100 px-2 py-1 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                                                                    <div className="mt-3 flex flex-col gap-2 rounded-lg bg-muted/10 p-3 text-xs text-muted-foreground sm:mt-4 sm:flex-row sm:items-center sm:justify-between">
+                                                                        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+                                                                            <span className="w-fit rounded bg-green-100 px-2 py-1 text-green-700 dark:bg-green-900/30 dark:text-green-400">
                                                                                 AI-Powered
                                                                             </span>
-                                                                            <span>Generated using {suggestion.model_used}</span>
+                                                                            <span className="text-xs sm:text-sm">
+                                                                                Generated using {suggestion.model_used}
+                                                                            </span>
                                                                         </div>
-                                                                        <span className="font-mono">Analysis ID: #{suggestion.id}</span>
+                                                                        <span className="font-mono text-xs">Analysis ID: #{suggestion.id}</span>
                                                                     </div>
                                                                 </div>
                                                             </DialogContent>
@@ -1028,15 +1142,17 @@ export default function AIAdvisor({ riskLevels, timeHorizons, recentSuggestions,
                                                                             <Eye className="h-4 w-4" />
                                                                         </Button>
                                                                     </DialogTrigger>
-                                                                    <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
+                                                                    <DialogContent className="max-h-[95vh] w-[95vw] max-w-[95vw] overflow-y-auto sm:max-h-[90vh] sm:w-auto sm:max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl">
                                                                         <DialogHeader className="space-y-3">
-                                                                            <DialogTitle className="flex items-center gap-3">
-                                                                                <div className="rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 p-2">
-                                                                                    <Lightbulb className="h-5 w-5 text-white" />
+                                                                            <DialogTitle className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <div className="rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 p-2">
+                                                                                        <Lightbulb className="h-5 w-5 text-white" />
+                                                                                    </div>
+                                                                                    <span className="text-lg font-semibold sm:text-xl">
+                                                                                        Investment Analysis for {suggestion.symbol}
+                                                                                    </span>
                                                                                 </div>
-                                                                                <span className="text-xl font-semibold">
-                                                                                    Investment Analysis for {suggestion.symbol}
-                                                                                </span>
                                                                             </DialogTitle>
                                                                             <div className="flex flex-wrap items-center gap-3">
                                                                                 <Badge variant="outline" className="text-sm">
@@ -1062,26 +1178,30 @@ export default function AIAdvisor({ riskLevels, timeHorizons, recentSuggestions,
                                                                                 </span>
                                                                             </div>
                                                                         </DialogHeader>
-                                                                        <div className="mt-6">
-                                                                            <div className="rounded-lg border bg-muted/20 p-6">
-                                                                                <h4 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+                                                                        <div className="mt-4 sm:mt-6">
+                                                                            <div className="rounded-lg border bg-muted/20 p-3 sm:p-4 lg:p-6">
+                                                                                <h4 className="mb-3 flex flex-col gap-2 text-base font-semibold sm:mb-4 sm:flex-row sm:items-center sm:gap-2 sm:text-lg">
                                                                                     <span className="rounded-md bg-blue-100 p-1 dark:bg-blue-900/30">
                                                                                         <Brain className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                                                                                     </span>
                                                                                     Professional Analysis Report
                                                                                 </h4>
-                                                                                <div className="max-w-none">
+                                                                                <div className="max-w-none overflow-hidden text-sm sm:text-base">
                                                                                     {formatAnalysisText(suggestion.suggestion)}
                                                                                 </div>
                                                                             </div>
-                                                                            <div className="mt-4 flex items-center justify-between rounded-lg bg-muted/10 p-3 text-xs text-muted-foreground">
-                                                                                <div className="flex items-center gap-2">
-                                                                                    <span className="rounded bg-green-100 px-2 py-1 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                                                                            <div className="mt-3 flex flex-col gap-2 rounded-lg bg-muted/10 p-3 text-xs text-muted-foreground sm:mt-4 sm:flex-row sm:items-center sm:justify-between">
+                                                                                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+                                                                                    <span className="w-fit rounded bg-green-100 px-2 py-1 text-green-700 dark:bg-green-900/30 dark:text-green-400">
                                                                                         AI-Powered
                                                                                     </span>
-                                                                                    <span>Generated using {suggestion.model_used}</span>
+                                                                                    <span className="text-xs sm:text-sm">
+                                                                                        Generated using {suggestion.model_used}
+                                                                                    </span>
                                                                                 </div>
-                                                                                <span className="font-mono">Analysis ID: #{suggestion.id}</span>
+                                                                                <span className="font-mono text-xs">
+                                                                                    Analysis ID: #{suggestion.id}
+                                                                                </span>
                                                                             </div>
                                                                         </div>
                                                                     </DialogContent>
