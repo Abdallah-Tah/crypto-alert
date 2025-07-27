@@ -1,3 +1,4 @@
+import { CryptoSearch } from '@/components/CryptoSearch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -114,18 +115,12 @@ export function WatchlistModal({ isOpen, onClose, availableSymbols, editItem = n
                     {/* Cryptocurrency Selection */}
                     <div className="space-y-2">
                         <Label htmlFor="symbol">Cryptocurrency *</Label>
-                        <Select value={data.symbol} onValueChange={(value) => setData('symbol', value)} disabled={isEditing}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select a cryptocurrency" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {availableSymbols.map((symbol) => (
-                                    <SelectItem key={symbol} value={symbol}>
-                                        {symbol}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <CryptoSearch
+                            value={data.symbol}
+                            onValueChange={(value) => setData('symbol', value)}
+                            placeholder="Search for a cryptocurrency..."
+                            disabled={isEditing}
+                        />
                         {errors.symbol && <p className="text-sm text-red-600">{errors.symbol}</p>}
                     </div>
 

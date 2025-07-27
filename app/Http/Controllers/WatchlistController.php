@@ -156,7 +156,69 @@ class WatchlistController extends Controller
     }
 
     /**
-     * Search available coins
+     * Search available coins for public use
+     */
+    public function searchCrypto(Request $request)
+    {
+        $request->validate([
+            'q' => 'nullable|string|max:50',
+        ]);
+
+        $query = $request->input('q', '');
+
+        try {
+            // Direct database query for debugging
+            $baseQuery = \App\Models\Cryptocurrency::active();
+
+            if (empty($query)) {
+                // Return top 100 popular coins when no query, ordered by market cap
+                $cryptocurrencies = $baseQuery->orderBy('market_cap_rank')->limit(100)->get();
+            } else {
+                // Search by name or symbol
+                $cryptocurrencies = $baseQuery->where(function ($q) use ($query) {
+                    $q->where('name', 'LIKE', "%{$query}%")
+                        ->orWhere('symbol', 'LIKE', "%{$query}%")
+                        ->orWhere('trading_symbol', 'LIKE', "%{$query}%");
+                })
+                    ->orderBy('market_cap_rank')
+                    ->limit(50)
+                    ->get();
+            }
+
+            $results = $cryptocurrencies->map(function ($crypto) {
+                return [
+                    'symbol' => $crypto->trading_symbol,
+                    'name' => $crypto->name,
+                    'id' => $crypto->coingecko_id,
+                    'display_symbol' => $crypto->symbol,
+                    'current_price' => $crypto->current_price,
+                    'formatted_price' => $crypto->current_price ?
+                        '$' . number_format($crypto->current_price, $crypto->current_price >= 1 ? 2 : 6) : null,
+                    'market_cap_rank' => $crypto->market_cap_rank,
+                    'price_change_24h' => $crypto->price_change_24h,
+                    'image_url' => $crypto->image_url,
+                ];
+            })->toArray();
+
+            return response()->json([
+                'results' => $results,
+                'debug' => [
+                    'query' => $query,
+                    'total_found' => count($results),
+                    'total_cryptocurrencies' => \App\Models\Cryptocurrency::count()
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'results' => [],
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Search available coins for authenticated users
      */
     public function searchCoins(Request $request)
     {

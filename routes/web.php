@@ -18,6 +18,20 @@ Route::post('/contact', [PublicController::class, 'submitContact'])->name('conta
 Route::get('/pricing', [PublicController::class, 'pricing'])->name('pricing');
 Route::get('/features', [PublicController::class, 'features'])->name('features');
 Route::get('/privacy', [PublicController::class, 'privacy'])->name('privacy');
+
+// Debug route for testing cryptocurrency search
+Route::get('/test-crypto-search', function () {
+    $count = \App\Models\Cryptocurrency::count();
+    $sample = \App\Models\Cryptocurrency::take(5)->get(['symbol', 'name', 'trading_symbol']);
+    $btcSearch = \App\Models\Cryptocurrency::where('symbol', 'LIKE', '%BTC%')->get(['symbol', 'name', 'trading_symbol']);
+
+    return response()->json([
+        'total_cryptocurrencies' => $count,
+        'sample_data' => $sample,
+        'btc_search_results' => $btcSearch,
+        'api_search_test' => app(WatchlistController::class)->searchCrypto(new \Illuminate\Http\Request(['q' => 'bitcoin']))->getData()
+    ]);
+});
 Route::get('/terms', [PublicController::class, 'terms'])->name('terms');
 
 Route::middleware(['auth', 'verified'])->group(function () {

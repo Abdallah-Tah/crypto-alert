@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Models\Cryptocurrency;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -388,7 +389,7 @@ class WatchlistService
     }
 
     /**
-     * Search available coins
+     * Search available coins using database
      *
      * @param string $query
      * @return array
@@ -396,26 +397,78 @@ class WatchlistService
     public function searchCoins(string $query): array
     {
         try {
+            $baseQuery = Cryptocurrency::active();
+
+            if (empty($query)) {
+                // Return top 100 popular coins when no query, ordered by market cap
+                $cryptocurrencies = $baseQuery->topByMarketCap(100)->get();
+            } else {
+                // Search by name or symbol with full-text search for better performance
+                $cryptocurrencies = $baseQuery->search($query)
+                    ->orderBy('market_cap_rank')
+                    ->limit(50)
+                    ->get();
+            }
+
+            return $cryptocurrencies->map(function ($crypto) {
+                return [
+                    'symbol' => $crypto->trading_symbol,
+                    'name' => $crypto->name,
+                    'id' => $crypto->coingecko_id,
+                    'display_symbol' => $crypto->symbol,
+                    'current_price' => $crypto->current_price,
+                    'formatted_price' => $crypto->formatted_price,
+                    'market_cap_rank' => $crypto->market_cap_rank,
+                    'price_change_24h' => $crypto->price_change_24h,
+                    'image_url' => $crypto->image_url,
+                ];
+            })->toArray();
+
+        } catch (Exception $e) {
+            Log::error("Failed to search coins in database: " . $e->getMessage());
+
+            // Fallback to old method if database search fails
+            return $this->searchCoinsLegacy($query);
+        }
+    }
+
+    /**
+     * Legacy search method as fallback
+     */
+    private function searchCoinsLegacy(string $query): array
+    {
+        try {
             $availableSymbols = $this->ccxtService->getAvailableSymbols();
 
-            $filtered = array_filter($availableSymbols, function ($symbol) use ($query) {
-                return stripos($symbol, $query) !== false;
+            if (empty($query)) {
+                return array_slice($availableSymbols, 0, 50);
+            }
+
+            $filtered = array_filter($availableSymbols, function ($coin) use ($query) {
+                $queryLower = strtolower($query);
+
+                if (is_string($coin)) {
+                    return stripos($coin, $queryLower) !== false;
+                }
+
+                $symbolMatch = stripos($coin['symbol'], $queryLower) !== false;
+                $nameMatch = stripos($coin['name'], $queryLower) !== false;
+
+                return $symbolMatch || $nameMatch;
             });
 
             return array_values($filtered);
 
         } catch (Exception $e) {
-            Log::error("Failed to search coins: " . $e->getMessage());
+            Log::error("Failed to search coins with legacy method: " . $e->getMessage());
             return [];
         }
-    }
-
-    /**
-     * Get all symbols in user's watchlist
-     *
-     * @param User $user
-     * @return array
-     */
+    }    /**
+         * Get all symbols in user's watchlist
+         *
+         * @param User $user
+         * @return array
+         */
     public function getUserSymbols(User $user): array
     {
         try {

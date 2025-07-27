@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\Cryptocurrency;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 
 class CCXTService
 {
@@ -74,27 +76,54 @@ class CCXTService
     }
 
     /**
-     * Get available trading pairs
+     * Get available trading pairs from database
      */
     public function getAvailableSymbols(): array
     {
-        return [
-            'BTC/USDT',
-            'ETH/USDT',
-            'ADA/USDT',
-            'DOT/USDT',
-            'SOL/USDT',
-            'LINK/USDT',
-            'AVAX/USDT',
-            'MATIC/USDT',
-            'UNI/USDT',
-            'LTC/USDT',
-        ];
-    }
+        try {
+            // Get active cryptocurrencies from database, ordered by market cap rank
+            $cryptocurrencies = Cryptocurrency::active()
+                ->orderBy('market_cap_rank')
+                ->get(['trading_symbol', 'name', 'coingecko_id', 'symbol', 'current_price', 'market_cap_rank'])
+                ->map(function ($crypto) {
+                    return [
+                        'symbol' => $crypto->trading_symbol,
+                        'name' => $crypto->name,
+                        'id' => $crypto->coingecko_id,
+                        'display_symbol' => $crypto->symbol,
+                        'current_price' => $crypto->current_price,
+                        'rank' => $crypto->market_cap_rank,
+                    ];
+                })
+                ->toArray();
 
-    /**
-     * Get market data for top coins
-     */
+            if (!empty($cryptocurrencies)) {
+                return $cryptocurrencies;
+            }
+
+            // Fallback: if database is empty, return popular coins
+            Log::warning('No cryptocurrencies found in database, using fallback list');
+
+        } catch (Exception $e) {
+            Log::error("Failed to fetch cryptocurrencies from database: " . $e->getMessage());
+        }
+
+        // Fallback to popular coins if database query fails
+        return [
+            ['symbol' => 'BTC/USDT', 'name' => 'Bitcoin', 'id' => 'bitcoin', 'display_symbol' => 'BTC', 'current_price' => null, 'rank' => 1],
+            ['symbol' => 'ETH/USDT', 'name' => 'Ethereum', 'id' => 'ethereum', 'display_symbol' => 'ETH', 'current_price' => null, 'rank' => 2],
+            ['symbol' => 'ADA/USDT', 'name' => 'Cardano', 'id' => 'cardano', 'display_symbol' => 'ADA', 'current_price' => null, 'rank' => 8],
+            ['symbol' => 'DOT/USDT', 'name' => 'Polkadot', 'id' => 'polkadot', 'display_symbol' => 'DOT', 'current_price' => null, 'rank' => 12],
+            ['symbol' => 'SOL/USDT', 'name' => 'Solana', 'id' => 'solana', 'display_symbol' => 'SOL', 'current_price' => null, 'rank' => 5],
+            ['symbol' => 'LINK/USDT', 'name' => 'Chainlink', 'id' => 'chainlink', 'display_symbol' => 'LINK', 'current_price' => null, 'rank' => 15],
+            ['symbol' => 'AVAX/USDT', 'name' => 'Avalanche', 'id' => 'avalanche-2', 'display_symbol' => 'AVAX', 'current_price' => null, 'rank' => 10],
+            ['symbol' => 'MATIC/USDT', 'name' => 'Polygon', 'id' => 'matic-network', 'display_symbol' => 'MATIC', 'current_price' => null, 'rank' => 14],
+            ['symbol' => 'UNI/USDT', 'name' => 'Uniswap', 'id' => 'uniswap', 'display_symbol' => 'UNI', 'current_price' => null, 'rank' => 16],
+            ['symbol' => 'LTC/USDT', 'name' => 'Litecoin', 'id' => 'litecoin', 'display_symbol' => 'LTC', 'current_price' => null, 'rank' => 20],
+        ];
+    }    /**
+         * Get market data for top coins
+         */
     public function getTopCoins(int $limit = 10): array
     {
         try {
