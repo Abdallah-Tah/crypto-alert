@@ -13,6 +13,7 @@
         "inertiajs/inertia-laravel": "^2.0",
         "kornrunner/ccxt": "^1.4",
         "laravel/framework": "^12.0",
+        "laravel/reverb": "^1.0",
         "laravel/tinker": "^2.10.1",
         "nativephp/mobile": "^1.1",
         "prism-php/prism": "^0.81.0",

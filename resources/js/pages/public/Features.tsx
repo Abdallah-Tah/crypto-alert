@@ -4,7 +4,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Head, Link } from '@inertiajs/react';
 import { ArrowRight, BarChart3, Bell, Brain, Calculator, Globe, Lock, Mail, Phone, Shield, Smartphone, TrendingUp, Users, Zap } from 'lucide-react';
 
-export default function Features({ features }) {
+interface Feature {
+    title: string;
+    description: string;
+    icon?: string;
+    status?: string;
+    [key: string]: any;
+}
+
+interface FeaturesProps {
+    features: {
+        ai?: Feature[];
+        analytics?: Feature[];
+        alerts?: Feature[];
+        portfolio?: Feature[];
+        security?: Feature[];
+        mobile?: Feature[];
+        [key: string]: Feature[] | undefined;
+    };
+}
+
+export default function Features({ features }: FeaturesProps) {
     const featureCategories = [
         {
             title: 'AI-Powered Analysis',
@@ -117,7 +137,7 @@ export default function Features({ features }) {
                                 </div>
 
                                 <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-                                    {category.features.map((feature, featureIndex) => (
+                                    {category.features.map((feature: Feature, featureIndex: number) => (
                                         <Card key={featureIndex} className="border-0 shadow-lg transition-shadow hover:shadow-xl">
                                             <CardHeader>
                                                 <CardTitle className="text-xl">{feature.title}</CardTitle>

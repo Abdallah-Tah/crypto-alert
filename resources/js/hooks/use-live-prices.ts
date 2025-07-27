@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEcho } from '@laravel/echo-react';
 import axios from 'axios';
 
 interface LivePriceData {

@@ -1,5 +1,6 @@
 import { PerformanceChart } from '@/components/PerformanceChart';
 import { PortfolioHoldings } from '@/components/PortfolioHoldings';
+import { PortfolioAllocationChart } from '@/components/dashboard/analytics/PortfolioAllocationChart';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,6 +8,7 @@ import { LivePriceIndicator } from '@/components/ui/live-price-indicator';
 import { useLivePrices } from '@/hooks/use-live-prices';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
+import { PortfolioHolding } from '@/types/portfolio';
 import { Head, Link } from '@inertiajs/react';
 import { ArrowRight, Bell, Brain, DollarSign, Star, TrendingDown, TrendingUp, Zap } from 'lucide-react';
 
@@ -48,7 +50,7 @@ interface MarketSummary {
     market_change: number;
 }
 
-interface PortfolioHolding {
+interface PortfolioHoldingFromBackend {
     symbol: string;
     current_price: number;
     quantity: number;
@@ -61,7 +63,7 @@ interface PortfolioHolding {
 
 interface DashboardProps {
     watchlistSummary: WatchlistSummary;
-    portfolioHoldings: PortfolioHolding[];
+    portfolioHoldings: PortfolioHoldingFromBackend[];
     topMovers: TopMover[];
     recentAlerts: RecentAlert[];
     aiSuggestions: AISuggestion[];
@@ -98,7 +100,20 @@ export default function Dashboard({
     // Use live data for top movers and watchlist summary
     const currentTopMovers = liveData?.topMovers || topMovers;
     const currentWatchlistSummary = liveData?.watchlistSummary || watchlistSummary;
-    const currentPortfolioHoldings = liveData?.portfolioHoldings || portfolioHoldings;
+    const currentPortfolioHoldings: PortfolioHolding[] = ((liveData?.portfolioHoldings as PortfolioHoldingFromBackend[]) || portfolioHoldings).map(
+        (holding: PortfolioHoldingFromBackend, index: number) => ({
+            id: index + 1, // Generate ID since it's not provided
+            symbol: holding.symbol,
+            name: holding.name,
+            current_price: holding.current_price,
+            price_change_24h: holding.price_change_24h,
+            holdings_amount: holding.quantity, // Map quantity to holdings_amount
+            holdings_type: holding.holdings_type as 'usd_value' | 'coin_quantity',
+            logo: holding.logo,
+            total_value: holding.total_value,
+            quantity: holding.quantity, // Keep for backward compatibility
+        }),
+    );
 
     const formatPrice = (price: number): string => {
         if (!price) return '$0.00';
@@ -239,6 +254,9 @@ export default function Dashboard({
 
                 {/* Portfolio Holdings */}
                 <PortfolioHoldings holdings={currentPortfolioHoldings} />
+
+                {/* Portfolio Allocation Chart */}
+                <PortfolioAllocationChart holdings={currentPortfolioHoldings} totalValue={currentWatchlistSummary.total_value} />
 
                 {/* Performance Chart */}
                 <PerformanceChart availableSymbols={topMovers.map((m) => m.symbol)} />

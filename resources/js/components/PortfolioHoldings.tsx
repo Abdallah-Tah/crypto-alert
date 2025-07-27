@@ -1,17 +1,8 @@
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { PortfolioHolding } from '@/types/portfolio';
 import { Coins, TrendingDown, TrendingUp } from 'lucide-react';
-
-interface PortfolioHolding {
-    id: number;
-    symbol: string;
-    current_price: number;
-    price_change_24h: number;
-    holdings_amount: number;
-    holdings_type: string;
-    purchase_price?: number;
-}
 
 interface PortfolioHoldingsProps {
     holdings: PortfolioHolding[];
