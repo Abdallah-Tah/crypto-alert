@@ -178,6 +178,90 @@ class AIAdvisorService
     }
 
     /**
+     * Generate portfolio advice for selected coins
+     *
+     * @param array $coinData Array of coin data with symbol, price, change_24h
+     * @param string $riskLevel
+     * @param string $timeHorizon  
+     * @param string $context Additional context for the analysis
+     * @return array|null
+     */
+    public function generatePortfolioAdvice(
+        array $coinData,
+        string $riskLevel = 'moderate',
+        string $timeHorizon = 'medium',
+        string $context = 'Portfolio analysis'
+    ): ?array {
+        try {
+            $coinSummary = $this->buildCoinDataSummary($coinData);
+
+            $prompt = "Analyze this selection of cryptocurrencies for a {$riskLevel} risk investor with a {$timeHorizon}-term outlook:
+
+{$coinSummary}
+
+Context: {$context}
+
+Provide investment advice focusing on:
+1. Individual coin analysis and recommendations
+2. Portfolio balance and diversification
+3. Risk assessment for the selected timeframe
+4. Market trends affecting these specific coins
+5. Actionable recommendations (buy/hold/sell/rebalance)
+
+Keep the response comprehensive but concise (under 400 words).";
+
+            $response = Prism::text()
+                ->using(Provider::OpenAI, 'gpt-4o')
+                ->withPrompt($prompt)
+                ->withProviderOptions([
+                    'temperature' => 0.7,
+                    'max_tokens' => 600,
+                ])
+                ->asText();
+
+            if ($response->text) {
+                return [
+                    'suggestion' => $response->text,
+                    'model_used' => 'gpt-4o',
+                    'confidence_score' => 85, // Default confidence for portfolio analysis
+                    'structured_advice' => [
+                        'analysis_type' => 'Multi-coin Portfolio',
+                        'coins_analyzed' => count($coinData),
+                        'risk_level' => $riskLevel,
+                        'time_horizon' => $timeHorizon,
+                        'total_coins' => implode(', ', array_column($coinData, 'symbol'))
+                    ]
+                ];
+            }
+
+            return null;
+
+        } catch (PrismException $e) {
+            Log::error("Failed to generate portfolio advice with Prism: " . $e->getMessage());
+            return null;
+        } catch (Exception $e) {
+            Log::error("Failed to generate portfolio advice: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Build coin data summary for AI analysis
+     *
+     * @param array $coinData
+     * @return string
+     */
+    private function buildCoinDataSummary(array $coinData): string
+    {
+        $summary = "Selected Cryptocurrencies:\n";
+        foreach ($coinData as $coin) {
+            $changeIndicator = $coin['change_24h'] >= 0 ? '+' : '';
+            $summary .= "- {$coin['symbol']}: \${$coin['price']} ({$changeIndicator}{$coin['change_24h']}% 24h)\n";
+        }
+        return $summary;
+    }
+
+    /**
      * Get market sentiment analysis
      *
      * @param array $marketData
@@ -374,7 +458,7 @@ Remember: Your analysis must be based on the CURRENT LIVE PRICE of \$" . number_
             $prices = [];
 
             foreach ($majorCryptos as $crypto) {
-                $price = $this->ccxtService->getPrice($crypto);
+                $price = $this->ccxtService->getCurrentPrice($crypto . '/USDT');
                 if ($price !== null) {
                     $prices[$crypto] = $price;
                 }

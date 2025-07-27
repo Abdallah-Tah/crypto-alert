@@ -3,11 +3,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, useForm } from '@inertiajs/react';
-import { AlertTriangle, Brain, Clock, Lightbulb, Sparkles, Target, TrendingUp } from 'lucide-react';
+import { Head, router, useForm } from '@inertiajs/react';
+import { AlertTriangle, Brain, Clock, Lightbulb, Sparkles, Target, TrendingUp, X } from 'lucide-react';
 import { useState } from 'react';
 
 interface AISuggestion {
@@ -25,6 +25,7 @@ interface AIAdvisorProps {
     timeHorizons: string[];
     recentSuggestions: AISuggestion[];
     availableSymbols: string[];
+    portfolioSymbols: string[];
     flash?: {
         success?: string;
         error?: string;
@@ -42,15 +43,19 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'AI Advisor', href: '/advisor' },
 ];
 
-export default function AIAdvisor({ riskLevels, timeHorizons, recentSuggestions, availableSymbols, flash }: AIAdvisorProps) {
+export default function AIAdvisor({ riskLevels, timeHorizons, recentSuggestions, availableSymbols, portfolioSymbols, flash }: AIAdvisorProps) {
     const [isGenerating, setIsGenerating] = useState(false);
     const [marketSentiment, setMarketSentiment] = useState(null);
     const [loadingSentiment, setLoadingSentiment] = useState(false);
+    const [analysisMode, setAnalysisMode] = useState<'single' | 'portfolio' | 'multi-select'>('single');
+    const [selectedPortfolioCoins, setSelectedPortfolioCoins] = useState<string[]>([]);
 
-    const { data, setData, post, processing, errors } = useForm({
+    const { data, setData, processing, errors } = useForm({
         symbol: '',
         risk_level: 'moderate',
         time_horizon: 'medium',
+        selected_coins: [] as string[],
+        analysis_mode: 'single',
     });
 
     const portfolioForm = useForm({
@@ -60,7 +65,18 @@ export default function AIAdvisor({ riskLevels, timeHorizons, recentSuggestions,
     const handleGenerateAdvice = (e: React.FormEvent) => {
         e.preventDefault();
         setIsGenerating(true);
-        post('/advisor/generate', {
+
+        // Prepare the data to submit
+        const submitData = {
+            symbol: data.symbol,
+            risk_level: data.risk_level,
+            time_horizon: data.time_horizon,
+            selected_coins: analysisMode === 'multi-select' ? selectedPortfolioCoins : [],
+            analysis_mode: analysisMode,
+        };
+
+        // Use router.post to submit with custom data
+        router.post('/advisor/generate', submitData, {
             onSuccess: () => {
                 setIsGenerating(false);
             },
@@ -68,6 +84,14 @@ export default function AIAdvisor({ riskLevels, timeHorizons, recentSuggestions,
                 setIsGenerating(false);
             },
         });
+    };
+
+    const toggleCoinSelection = (coin: string) => {
+        setSelectedPortfolioCoins((prev) => (prev.includes(coin) ? prev.filter((c) => c !== coin) : [...prev, coin]));
+    };
+
+    const removeCoin = (coin: string) => {
+        setSelectedPortfolioCoins((prev) => prev.filter((c) => c !== coin));
     };
 
     const handleAnalyzePortfolio = (e: React.FormEvent) => {
@@ -94,6 +118,9 @@ export default function AIAdvisor({ riskLevels, timeHorizons, recentSuggestions,
             setLoadingSentiment(false);
         }
     };
+
+    // helper to convert keys to Start Case
+    const startCase = (str: string) => str.replace(/[_-]/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -139,23 +166,138 @@ export default function AIAdvisor({ riskLevels, timeHorizons, recentSuggestions,
                         </CardHeader>
                         <CardContent className="relative">
                             <form onSubmit={handleGenerateAdvice} className="space-y-4">
+                                {/* Analysis Mode Selection */}
                                 <div className="space-y-2">
-                                    <Label htmlFor="symbol">Cryptocurrency Symbol</Label>
-                                    <Select value={data.symbol} onValueChange={(value) => setData('symbol', value)}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select a cryptocurrency" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {availableSymbols.map((symbol) => (
-                                                <SelectItem key={symbol} value={symbol}>
-                                                    {symbol}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    {errors.symbol && <p className="text-sm text-red-600">{errors.symbol}</p>}
+                                    <Label>Analysis Mode</Label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <Button
+                                            type="button"
+                                            variant={analysisMode === 'single' ? 'default' : 'outline'}
+                                            size="sm"
+                                            onClick={() => {
+                                                setAnalysisMode('single');
+                                                setData('analysis_mode', 'single');
+                                            }}
+                                        >
+                                            Single Coin
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant={analysisMode === 'portfolio' ? 'default' : 'outline'}
+                                            size="sm"
+                                            onClick={() => {
+                                                setAnalysisMode('portfolio');
+                                                setData('analysis_mode', 'portfolio');
+                                            }}
+                                        >
+                                            Full Portfolio
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant={analysisMode === 'multi-select' ? 'default' : 'outline'}
+                                            size="sm"
+                                            onClick={() => {
+                                                setAnalysisMode('multi-select');
+                                                setData('analysis_mode', 'multi-select');
+                                            }}
+                                        >
+                                            Select Coins
+                                        </Button>
+                                    </div>
                                 </div>
 
+                                {/* Single Coin Selection */}
+                                {analysisMode === 'single' && (
+                                    <div className="space-y-2">
+                                        <Label htmlFor="symbol">Cryptocurrency Symbol</Label>
+                                        <Select value={data.symbol} onValueChange={(value) => setData('symbol', value)}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select a cryptocurrency" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {/* Portfolio coins first */}
+                                                <SelectGroup>
+                                                    <SelectLabel>Your Portfolio</SelectLabel>
+                                                    {portfolioSymbols.map((symbol) => (
+                                                        <SelectItem key={symbol} value={symbol}>
+                                                            {symbol}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectGroup>
+                                                <SelectSeparator />
+                                                {/* All other symbols */}
+                                                <SelectGroup>
+                                                    <SelectLabel>All Cryptocurrencies</SelectLabel>
+                                                    {availableSymbols
+                                                        .filter((symbol) => !portfolioSymbols.includes(symbol))
+                                                        .map((symbol) => (
+                                                            <SelectItem key={symbol} value={symbol}>
+                                                                {symbol}
+                                                            </SelectItem>
+                                                        ))}
+                                                </SelectGroup>
+                                            </SelectContent>
+                                        </Select>
+                                        {errors.symbol && <p className="text-sm text-red-600">{errors.symbol}</p>}
+                                    </div>
+                                )}
+
+                                {/* Multi-Select Portfolio Coins */}
+                                {analysisMode === 'multi-select' && (
+                                    <div className="space-y-2">
+                                        <Label>Select Portfolio Coins to Analyze</Label>
+                                        <div className="space-y-2">
+                                            {/* Selected coins display */}
+                                            {selectedPortfolioCoins.length > 0 && (
+                                                <div className="flex flex-wrap gap-2">
+                                                    {selectedPortfolioCoins.map((coin) => (
+                                                        <Badge
+                                                            key={coin}
+                                                            variant="secondary"
+                                                            className="flex cursor-pointer items-center gap-1 hover:bg-destructive hover:text-destructive-foreground"
+                                                            onClick={() => removeCoin(coin)}
+                                                        >
+                                                            {coin}
+                                                            <X className="h-3 w-3" />
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {/* Coin selection buttons */}
+                                            <div className="grid max-h-32 grid-cols-3 gap-2 overflow-y-auto">
+                                                {portfolioSymbols.map((symbol) => (
+                                                    <Button
+                                                        key={symbol}
+                                                        type="button"
+                                                        variant={selectedPortfolioCoins.includes(symbol) ? 'default' : 'outline'}
+                                                        size="sm"
+                                                        onClick={() => toggleCoinSelection(symbol)}
+                                                        className="text-xs"
+                                                    >
+                                                        {symbol}
+                                                    </Button>
+                                                ))}
+                                            </div>
+
+                                            {portfolioSymbols.length === 0 && (
+                                                <p className="text-sm text-muted-foreground">No coins in your portfolio yet.</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Portfolio Analysis Notice */}
+                                {analysisMode === 'portfolio' && (
+                                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950/20">
+                                        <p className="text-sm text-blue-800 dark:text-blue-200">
+                                            This will analyze your entire portfolio ({portfolioSymbols.length} coins) and provide comprehensive
+                                            investment advice.
+                                        </p>
+                                    </div>
+                                )}
+
+                                {/* Risk Level and Time Horizon */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="risk_level">Risk Level</Label>
@@ -190,7 +332,17 @@ export default function AIAdvisor({ riskLevels, timeHorizons, recentSuggestions,
                                     </div>
                                 </div>
 
-                                <Button type="submit" disabled={processing || isGenerating || !data.symbol} className="w-full">
+                                <Button
+                                    type="submit"
+                                    disabled={
+                                        processing ||
+                                        isGenerating ||
+                                        (analysisMode === 'single' && !data.symbol) ||
+                                        (analysisMode === 'multi-select' && selectedPortfolioCoins.length === 0) ||
+                                        (analysisMode === 'portfolio' && portfolioSymbols.length === 0)
+                                    }
+                                    className="w-full"
+                                >
                                     {isGenerating ? (
                                         <>
                                             <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-foreground" />
@@ -199,7 +351,11 @@ export default function AIAdvisor({ riskLevels, timeHorizons, recentSuggestions,
                                     ) : (
                                         <>
                                             <Brain className="mr-2 h-4 w-4" />
-                                            Generate AI Advice
+                                            {analysisMode === 'single'
+                                                ? 'Generate AI Advice'
+                                                : analysisMode === 'portfolio'
+                                                  ? 'Analyze Full Portfolio'
+                                                  : `Analyze ${selectedPortfolioCoins.length} Selected Coins`}
                                         </>
                                     )}
                                 </Button>
@@ -306,7 +462,19 @@ export default function AIAdvisor({ riskLevels, timeHorizons, recentSuggestions,
                             )}
                         </CardHeader>
                         <CardContent>
-                            <div className="whitespace-pre-wrap text-blue-900 dark:text-blue-100">{flash.advice.suggestion}</div>
+                            {/* Structured advice display */}
+                            {flash.advice.structured_advice && (
+                                <div className="grid grid-cols-2 gap-4">
+                                    {Object.entries(flash.advice.structured_advice).map(([key, value]) => (
+                                        <div key={key}>
+                                            <p className="text-xs font-semibold text-blue-700 dark:text-blue-300">{startCase(key)}</p>
+                                            <p className="text-sm text-blue-900 dark:text-blue-100">{String(value)}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            {/* Free-form suggestion */}
+                            <div className="mt-4 whitespace-pre-wrap text-blue-900 dark:text-blue-100">{flash.advice.suggestion}</div>
                         </CardContent>
                     </Card>
                 )}

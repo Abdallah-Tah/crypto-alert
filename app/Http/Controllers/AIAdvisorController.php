@@ -31,21 +31,29 @@ class AIAdvisorController extends Controller
             ->limit(10)
             ->get();
 
+        // Get user's portfolio symbols from watchlist
+        $watchlistService = app(\App\Services\WatchlistService::class);
+        $portfolio = $watchlistService->getUserWatchlist($user);
+        $portfolioSymbols = array_map(fn($item) => $item['symbol'], $portfolio);
         return Inertia::render('AIAdvisor', [
             'riskLevels' => config('crypto-advisor.ai_advisor.risk_levels'),
             'timeHorizons' => config('crypto-advisor.ai_advisor.time_horizons'),
             'recentSuggestions' => $recentSuggestions,
             'availableSymbols' => $this->ccxtService->getAvailableSymbols(),
+            'portfolioSymbols' => $portfolioSymbols,
         ]);
     }
 
     /**
-     * Generate AI advice for a specific coin
+     * Generate AI advice for a specific coin or portfolio
      */
     public function generateAdvice(Request $request)
     {
         $request->validate([
-            'symbol' => 'required|string',
+            'analysis_mode' => 'required|in:single,portfolio,multi-select',
+            'symbol' => 'required_if:analysis_mode,single|string',
+            'selected_coins' => 'required_if:analysis_mode,multi-select|array',
+            'selected_coins.*' => 'string',
             'risk_level' => 'required|in:low,moderate,high',
             'time_horizon' => 'required|in:short,medium,long',
         ]);
@@ -61,6 +69,31 @@ class AIAdvisorController extends Controller
         if ($todayCount >= $maxSuggestions) {
             return back()->withErrors(['error' => "Daily limit of {$maxSuggestions} AI suggestions reached"]);
         }
+
+        $analysisMode = $request->input('analysis_mode');
+
+        // Handle different analysis modes
+        switch ($analysisMode) {
+            case 'single':
+                return $this->analyzeSingleCoin($request);
+
+            case 'portfolio':
+                return $this->analyzePortfolio($request);
+
+            case 'multi-select':
+                return $this->analyzeSelectedCoins($request);
+
+            default:
+                return back()->withErrors(['error' => 'Invalid analysis mode']);
+        }
+    }
+
+    /**
+     * Analyze a single coin
+     */
+    private function analyzeSingleCoin(Request $request)
+    {
+        $user = Auth::user();
 
         // Get current price data
         $priceData = $this->ccxtService->getCurrentPrice($request->input('symbol'));
@@ -96,6 +129,66 @@ class AIAdvisorController extends Controller
         ]);
 
         return back()->with('success', 'AI advice generated successfully')
+            ->with('advice', $advice)
+            ->with('suggestion_id', $suggestionId);
+    }
+
+    /**
+     * Analyze selected coins from portfolio
+     */
+    private function analyzeSelectedCoins(Request $request)
+    {
+        $user = Auth::user();
+        $selectedCoins = $request->input('selected_coins', []);
+
+        if (empty($selectedCoins)) {
+            return back()->withErrors(['error' => 'No coins selected for analysis']);
+        }
+
+        // Get price data for selected coins
+        $coinData = [];
+        foreach ($selectedCoins as $symbol) {
+            $priceData = $this->ccxtService->getCurrentPrice($symbol);
+            if ($priceData) {
+                $coinData[] = [
+                    'symbol' => $symbol,
+                    'price' => $priceData['price'],
+                    'change_24h' => $priceData['change_24h']
+                ];
+            }
+        }
+
+        if (empty($coinData)) {
+            return back()->withErrors(['error' => 'Unable to fetch price data for selected coins']);
+        }
+
+        // Generate portfolio advice for selected coins
+        $advice = $this->aiAdvisorService->generatePortfolioAdvice(
+            $coinData,
+            $request->input('risk_level'),
+            $request->input('time_horizon'),
+            'Selected coins from portfolio'
+        );
+
+        if (!$advice) {
+            return back()->withErrors(['error' => 'Failed to generate AI advice. Please try again.']);
+        }
+
+        // Store the suggestion with a combined symbol
+        $combinedSymbol = implode(', ', $selectedCoins);
+        $suggestionId = DB::table('ai_suggestions')->insertGetId([
+            'user_id' => $user->id,
+            'symbol' => $combinedSymbol,
+            'suggestion' => $advice['suggestion'],
+            'model_used' => $advice['model_used'],
+            'risk_level' => $request->input('risk_level'),
+            'time_horizon' => $request->input('time_horizon'),
+            'price_at_time' => null, // No single price for multiple coins
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return back()->with('success', 'AI advice for selected coins generated successfully')
             ->with('advice', $advice)
             ->with('suggestion_id', $suggestionId);
     }

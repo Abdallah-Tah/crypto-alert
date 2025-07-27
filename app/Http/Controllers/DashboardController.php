@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\CCXTService;
+use Illuminate\Http\Request;
 use App\Services\AIAdvisorService;
 use App\Services\AlertService;
 use App\Services\WatchlistService;
@@ -52,5 +53,39 @@ class DashboardController extends Controller
             'aiSuggestions' => $aiSuggestions,
             'marketSummary' => $marketSummary,
         ]);
+    }
+
+    /**
+     * Get chart data
+     */
+    public function chartData(Request $request)
+    {
+        $symbol = $request->input('symbol');
+        $range = $request->input('range', '1D');
+        // Map ranges to days
+        $daysMap = ['1D' => 1, '1W' => 7, '1M' => 30, '3M' => 90, '1Y' => 365];
+        $days = $daysMap[$range] ?? 1;
+        // Convert symbol to CoinGecko ID
+        $coinId = $this->ccxtService->convertSymbolToCoinId($symbol);
+        if (!$coinId) {
+            return response()->json([], 400);
+        }
+        // Fetch historical market data from CoinGecko
+        $url = "https://api.coingecko.com/api/v3/coins/{$coinId}/market_chart?vs_currency=usd&days={$days}";
+        try {
+            $context = stream_context_create(['http' => ['timeout' => 10]]);
+            $resp = file_get_contents($url, false, $context);
+            $json = json_decode($resp, true);
+            $points = [];
+            if (!empty($json['prices']) && is_array($json['prices'])) {
+                foreach ($json['prices'] as $item) {
+                    // item: [ timestamp_ms, price ]
+                    $points[] = ['time' => $item[0], 'price' => $item[1]];
+                }
+            }
+        } catch (\Exception $e) {
+            return response()->json([], 500);
+        }
+        return response()->json($points);
     }
 }

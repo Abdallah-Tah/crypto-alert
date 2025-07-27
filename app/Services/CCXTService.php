@@ -161,7 +161,7 @@ class CCXTService
     /**
      * Convert trading symbol to CoinGecko coin ID
      */
-    private function convertSymbolToCoinId(string $symbol): ?string
+    public function convertSymbolToCoinId(string $symbol): ?string
     {
         // Remove /USDT, /USD, /BTC suffixes
         $baseSymbol = explode('/', $symbol)[0];

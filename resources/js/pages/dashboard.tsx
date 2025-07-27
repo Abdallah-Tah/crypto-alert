@@ -1,3 +1,4 @@
+import { PerformanceChart } from '@/components/PerformanceChart';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -220,6 +221,8 @@ export default function Dashboard({
                         </CardContent>
                     </Card>
                 </div>
+                {/* Performance Chart */}
+                <PerformanceChart availableSymbols={topMovers.map((m) => m.symbol)} />
 
                 <div className="grid gap-6 md:grid-cols-2">
                     {/* Recent AI Suggestions */}

@@ -15,6 +15,8 @@ Route::get('/', function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    // Chart data for performance graph
+    Route::get('dashboard/chart-data', [DashboardController::class, 'chartData'])->name('dashboard.chart-data');
 
     // AI Advisor routes
     Route::prefix('advisor')->name('advisor.')->group(function () {

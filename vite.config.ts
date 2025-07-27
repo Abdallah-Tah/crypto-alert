@@ -17,6 +17,10 @@ export default defineConfig({
     esbuild: {
         jsx: 'automatic',
     },
+    // Ensure chart.js and react-chartjs-2 are pre-bundled for Vite
+    optimizeDeps: {
+        include: ['chart.js', 'react-chartjs-2'],
+    },
     resolve: {
         alias: {
             'ziggy-js': resolve(__dirname, 'vendor/tightenco/ziggy'),
