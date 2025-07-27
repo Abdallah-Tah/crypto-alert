@@ -150,9 +150,30 @@ class WatchlistService
             foreach ($watchlistItems as $item) {
                 $currentPrice = $this->ccxtService->getCurrentPrice($item->symbol);
 
+                // Calculate current portfolio value for this holding
+                $currentValue = 0;
+                $quantity = 0;
+
+                if ($currentPrice && $item->holdings_amount && $item->holdings_amount > 0) {
+                    if ($item->holdings_type === 'usd_value' && $item->purchase_price && $item->purchase_price > 0) {
+                        // Holdings stored as USD value - calculate coin quantity from purchase
+                        $quantity = $item->holdings_amount / $item->purchase_price;
+                        $currentValue = $currentPrice['current_price'] * $quantity;
+                    } elseif ($item->holdings_type === 'coin_quantity') {
+                        // Holdings stored as coin quantity
+                        $quantity = $item->holdings_amount;
+                        $currentValue = $currentPrice['current_price'] * $quantity;
+                    } else {
+                        // Fallback: treat as USD value
+                        $currentValue = $item->holdings_amount;
+                        $quantity = $item->holdings_amount / ($currentPrice['current_price'] ?? 1);
+                    }
+                }
+
                 $watchlistWithPrices[] = [
                     'id' => $item->id,
                     'symbol' => $item->symbol,
+                    'name' => $this->getCoinName($item->symbol), // Add coin name
                     'alert_price' => $item->alert_price,
                     'holdings_amount' => $item->holdings_amount,
                     'holdings_type' => $item->holdings_type ?? 'usd_value',
@@ -162,8 +183,11 @@ class WatchlistService
                     'notes' => $item->notes,
                     'enabled' => $item->enabled,
                     'created_at' => $item->created_at,
-                    'current_price' => $currentPrice ? $currentPrice['price'] : null,
-                    'price_change_24h' => $currentPrice ? $currentPrice['change_24h'] : null,
+                    'current_price' => $currentPrice ? $currentPrice['current_price'] : null,
+                    'price_change_24h' => $currentPrice ? $currentPrice['price_change_24h'] : null,
+                    'quantity' => $quantity, // For dashboard compatibility
+                    'total_value' => $currentValue, // For dashboard compatibility
+                    'logo' => $this->getCoinLogo($item->symbol), // Add logo URL
                     'price_data' => $currentPrice
                 ];
             }
@@ -388,6 +412,48 @@ class WatchlistService
                 'top_losers' => []
             ];
         }
+    }
+
+    /**
+     * Get coin name from symbol
+     */
+    private function getCoinName(string $symbol): string
+    {
+        $coinMap = [
+            'BTC' => 'Bitcoin',
+            'ETH' => 'Ethereum',
+            'DOGE' => 'Dogecoin',
+            'ETC' => 'Ethereum Classic',
+            'ADA' => 'Cardano',
+            'DOT' => 'Polkadot',
+            'SOL' => 'Solana',
+            'MATIC' => 'Polygon',
+            'AVAX' => 'Avalanche',
+            'LTC' => 'Litecoin'
+        ];
+
+        return $coinMap[$symbol] ?? $symbol;
+    }
+
+    /**
+     * Get coin logo URL
+     */
+    private function getCoinLogo(string $symbol): string
+    {
+        $logoMap = [
+            'BTC' => 'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
+            'ETH' => 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
+            'DOGE' => 'https://cryptologos.cc/logos/dogecoin-doge-logo.png',
+            'ETC' => 'https://cryptologos.cc/logos/ethereum-classic-etc-logo.png',
+            'ADA' => 'https://cryptologos.cc/logos/cardano-ada-logo.png',
+            'DOT' => 'https://cryptologos.cc/logos/polkadot-new-dot-logo.png',
+            'SOL' => 'https://cryptologos.cc/logos/solana-sol-logo.png',
+            'MATIC' => 'https://cryptologos.cc/logos/polygon-matic-logo.png',
+            'AVAX' => 'https://cryptologos.cc/logos/avalanche-avax-logo.png',
+            'LTC' => 'https://cryptologos.cc/logos/litecoin-ltc-logo.png'
+        ];
+
+        return $logoMap[$symbol] ?? '';
     }
 
     /**

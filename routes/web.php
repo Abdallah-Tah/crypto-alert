@@ -3,6 +3,7 @@
 use App\Http\Controllers\AIAdvisorController;
 use App\Http\Controllers\Api\CryptoDataController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DebugController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PublicController;
 use App\Http\Controllers\TaxReportController;
@@ -75,6 +76,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/generate', [TaxReportController::class, 'generate'])->name('generate');
         Route::post('/export-csv', [TaxReportController::class, 'exportCSV'])->name('export-csv');
         Route::get('/optimization-suggestions', [TaxReportController::class, 'getOptimizationSuggestions'])->name('optimization-suggestions');
+    });
+
+    // Debug routes
+    Route::prefix('debug')->name('debug.')->group(function () {
+        Route::get('/portfolio', [DebugController::class, 'debugPortfolio'])->name('portfolio');
+        Route::get('/price', [DebugController::class, 'debugPrice'])->name('price');
+        Route::get('/price-comparison', [App\Http\Controllers\PriceComparisonController::class, 'comparePrices'])->name('price-comparison');
     });
 
     // Crypto API routes (for AJAX calls from frontend)
