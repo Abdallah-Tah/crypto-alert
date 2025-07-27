@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\CryptoDataController;
+use App\Http\Controllers\Api\PortfolioAnalyticsController;
 use App\Http\Controllers\WatchlistController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -27,3 +28,10 @@ Route::prefix('crypto')->group(function () {
         ]);
     });
 })->middleware('auth');
+
+// Portfolio Analytics API routes
+Route::prefix('portfolio')->middleware('auth')->group(function () {
+    Route::get('/performance', [PortfolioAnalyticsController::class, 'getPerformanceTimeline']);
+    Route::post('/snapshot', [PortfolioAnalyticsController::class, 'storeSnapshot']);
+    Route::get('/metrics', [PortfolioAnalyticsController::class, 'getMetrics']);
+});

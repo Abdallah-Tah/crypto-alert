@@ -1,5 +1,6 @@
 import { PerformanceChart } from '@/components/PerformanceChart';
 import { PortfolioHoldings } from '@/components/PortfolioHoldings';
+import PerformanceTimelineChart from '@/components/dashboard/analytics/PerformanceTimelineChart';
 import { PortfolioAllocationChart } from '@/components/dashboard/analytics/PortfolioAllocationChart';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -258,7 +259,10 @@ export default function Dashboard({
                 {/* Portfolio Allocation Chart */}
                 <PortfolioAllocationChart holdings={currentPortfolioHoldings} totalValue={currentWatchlistSummary.total_value} />
 
-                {/* Performance Chart */}
+                {/* Performance Timeline Chart */}
+                <PerformanceTimelineChart className="col-span-full" />
+
+                {/* Legacy Performance Chart */}
                 <PerformanceChart availableSymbols={topMovers.map((m) => m.symbol)} />
 
                 <div className="grid gap-6 md:grid-cols-2">
