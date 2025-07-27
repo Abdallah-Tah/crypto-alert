@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\AIAdvisorService;
+use App\Services\EnhancedAIAdvisorService;
 use App\Services\CCXTService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,6 +14,7 @@ class AIAdvisorController extends Controller
 {
     public function __construct(
         private AIAdvisorService $aiAdvisorService,
+        private EnhancedAIAdvisorService $enhancedAIAdvisorService,
         private CCXTService $ccxtService
     ) {
     }
@@ -89,7 +91,7 @@ class AIAdvisorController extends Controller
     }
 
     /**
-     * Analyze a single coin
+     * Analyze a single coin with enhanced AI capabilities
      */
     private function analyzeSingleCoin(Request $request)
     {
@@ -102,8 +104,8 @@ class AIAdvisorController extends Controller
             return back()->withErrors(['symbol' => 'Unable to fetch price data for this symbol']);
         }
 
-        // Generate AI advice
-        $advice = $this->aiAdvisorService->generateAdvice(
+        // Use enhanced AI service for comprehensive analysis
+        $advice = $this->enhancedAIAdvisorService->generateEnhancedAdvice(
             $request->input('symbol'),
             $priceData['price'],
             $priceData['change_24h'],
@@ -112,7 +114,7 @@ class AIAdvisorController extends Controller
         );
 
         if (!$advice) {
-            return back()->withErrors(['error' => 'Failed to generate AI advice. Please try again.']);
+            return back()->withErrors(['error' => 'Failed to generate enhanced AI advice. Please try again.']);
         }
 
         // Store the suggestion
@@ -128,14 +130,12 @@ class AIAdvisorController extends Controller
             'updated_at' => now(),
         ]);
 
-        return back()->with('success', 'AI advice generated successfully')
+        return back()->with('success', 'Enhanced AI analysis completed successfully')
             ->with('advice', $advice)
             ->with('suggestion_id', $suggestionId);
-    }
-
-    /**
-     * Analyze selected coins from portfolio
-     */
+    }    /**
+         * Analyze selected coins from portfolio
+         */
     private function analyzeSelectedCoins(Request $request)
     {
         $user = Auth::user();
@@ -162,16 +162,16 @@ class AIAdvisorController extends Controller
             return back()->withErrors(['error' => 'Unable to fetch price data for selected coins']);
         }
 
-        // Generate portfolio advice for selected coins
-        $advice = $this->aiAdvisorService->generatePortfolioAdvice(
+        // Generate enhanced portfolio advice for selected coins
+        $advice = $this->enhancedAIAdvisorService->generateEnhancedPortfolioAdvice(
             $coinData,
             $request->input('risk_level'),
             $request->input('time_horizon'),
-            'Selected coins from portfolio'
+            'Selected portfolio coins analysis'
         );
 
         if (!$advice) {
-            return back()->withErrors(['error' => 'Failed to generate AI advice. Please try again.']);
+            return back()->withErrors(['error' => 'Failed to generate enhanced portfolio advice. Please try again.']);
         }
 
         // Store the suggestion with a combined symbol
@@ -188,7 +188,7 @@ class AIAdvisorController extends Controller
             'updated_at' => now(),
         ]);
 
-        return back()->with('success', 'AI advice for selected coins generated successfully')
+        return back()->with('success', 'Enhanced portfolio analysis for selected coins completed successfully')
             ->with('advice', $advice)
             ->with('suggestion_id', $suggestionId);
     }
