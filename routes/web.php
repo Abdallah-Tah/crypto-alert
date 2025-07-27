@@ -4,14 +4,21 @@ use App\Http\Controllers\AIAdvisorController;
 use App\Http\Controllers\Api\CryptoDataController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PublicController;
 use App\Http\Controllers\TaxReportController;
 use App\Http\Controllers\WatchlistController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/', function () {
-    return Inertia::render('welcome');
-})->name('home');
+// Public routes
+Route::get('/', [PublicController::class, 'home'])->name('home');
+Route::get('/about', [PublicController::class, 'about'])->name('about');
+Route::get('/contact', [PublicController::class, 'contact'])->name('contact');
+Route::post('/contact', [PublicController::class, 'submitContact'])->name('contact.submit');
+Route::get('/pricing', [PublicController::class, 'pricing'])->name('pricing');
+Route::get('/features', [PublicController::class, 'features'])->name('features');
+Route::get('/privacy', [PublicController::class, 'privacy'])->name('privacy');
+Route::get('/terms', [PublicController::class, 'terms'])->name('terms');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
