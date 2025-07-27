@@ -27,14 +27,25 @@ export function CryptoSearch({ value, onValueChange, placeholder = 'Search crypt
             try {
                 const url = `/api/crypto/search?q=${encodeURIComponent(query)}`;
                 console.log('CryptoSearch: Making API call to:', url);
-                const response = await fetch(url);
+
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+
                 console.log('CryptoSearch: Response status:', response.status);
+
                 if (response.ok) {
                     const data = await response.json();
                     console.log('CryptoSearch: Received data:', data);
                     setOptions(data.results || []);
                 } else {
-                    console.error('CryptoSearch: API response not ok:', response.status, response.statusText);
+                    const errorText = await response.text();
+                    console.error('CryptoSearch: API response not ok:', response.status, response.statusText, errorText);
                     setOptions([]);
                 }
             } catch (error) {
