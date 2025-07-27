@@ -12,6 +12,15 @@ interface LivePriceData {
         alerts_active: number;
         total_value: number;
     };
+    portfolioHoldings?: Array<{
+        id: number;
+        symbol: string;
+        current_price: number;
+        price_change_24h: number;
+        holdings_amount: number;
+        holdings_type: string;
+        purchase_price?: number;
+    }>;
     timestamp: string;
     lastUpdate: string;
 }

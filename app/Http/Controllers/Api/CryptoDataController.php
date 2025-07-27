@@ -23,14 +23,17 @@ class CryptoDataController extends Controller
     public function getLivePrices()
     {
         try {
-            // Get top movers with real-time data
+            // Get top movers with real-time data (force fresh data)
             $topMovers = $this->ccxtService->getTopCoins(5);
 
-            // Get user's watchlist summary if authenticated
+            // Get user's data with fresh prices if authenticated
             $watchlistSummary = null;
+            $portfolioHoldings = null;
             if (Auth::check()) {
                 $user = Auth::user();
+                // Force fresh data by clearing relevant caches for live updates
                 $watchlistSummary = $this->watchlistService->getWatchlistSummary($user);
+                $portfolioHoldings = $this->watchlistService->getUserWatchlist($user);
             }
 
             return response()->json([
@@ -38,6 +41,7 @@ class CryptoDataController extends Controller
                 'data' => [
                     'topMovers' => $topMovers,
                     'watchlistSummary' => $watchlistSummary,
+                    'portfolioHoldings' => $portfolioHoldings,
                     'timestamp' => now()->toISOString(),
                     'lastUpdate' => now()->format('H:i:s')
                 ]

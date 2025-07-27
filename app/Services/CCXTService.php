@@ -23,17 +23,20 @@ class CCXTService
      * Fetch current price for a symbol
      *
      * @param string $symbol (e.g., 'BTC/USDT')
+     * @param bool $forceRefresh Skip cache and fetch fresh data
      * @return array|null
      */
-    public function getCurrentPrice(string $symbol): ?array
+    public function getCurrentPrice(string $symbol, bool $forceRefresh = false): ?array
     {
         try {
-            // Check cache first (cache for 30 seconds for real-time updates)
             $cacheKey = "crypto_price_" . str_replace('/', '_', $symbol);
-            $cachedPrice = Cache::get($cacheKey);
 
-            if ($cachedPrice) {
-                return $cachedPrice;
+            // Check cache first (unless force refresh is requested)
+            if (!$forceRefresh) {
+                $cachedPrice = Cache::get($cacheKey);
+                if ($cachedPrice) {
+                    return $cachedPrice;
+                }
             }
 
             // Try KuCoin API first for real-time data

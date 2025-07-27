@@ -27,10 +27,13 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
 
-        // Get user's watchlist summary
+        // Get user's watchlist summary with fresh real-time data
         $watchlistSummary = $this->watchlistService->getWatchlistSummary($user);
 
-        // Get top coins from market (as top movers)
+        // Get detailed portfolio holdings for portfolio display
+        $portfolioHoldings = $this->watchlistService->getUserWatchlist($user);
+
+        // Get top coins from market with real-time data
         $topMovers = $this->ccxtService->getTopCoins(5);
 
         // Get recent alerts
@@ -39,7 +42,7 @@ class DashboardController extends Controller
         // Get recent AI suggestions
         $aiSuggestions = $this->aiAdvisorService->getRecentSuggestions($user, 3);
 
-        // Create market summary
+        // Create market summary (this could also be made real-time)
         $marketSummary = [
             'total_market_cap' => 2500000000000, // 2.5T placeholder
             'btc_dominance' => 45.2,
@@ -48,6 +51,7 @@ class DashboardController extends Controller
 
         return Inertia::render('dashboard', [
             'watchlistSummary' => $watchlistSummary,
+            'portfolioHoldings' => $portfolioHoldings,
             'topMovers' => $topMovers,
             'recentAlerts' => $recentAlerts,
             'aiSuggestions' => $aiSuggestions,

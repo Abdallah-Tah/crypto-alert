@@ -1,4 +1,5 @@
 import { PerformanceChart } from '@/components/PerformanceChart';
+import { PortfolioHoldings } from '@/components/PortfolioHoldings';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,8 +48,20 @@ interface MarketSummary {
     market_change: number;
 }
 
+interface PortfolioHolding {
+    symbol: string;
+    current_price: number;
+    quantity: number;
+    total_value: number;
+    price_change_24h: number;
+    holdings_type: string;
+    logo: string;
+    name: string;
+}
+
 interface DashboardProps {
     watchlistSummary: WatchlistSummary;
+    portfolioHoldings: PortfolioHolding[];
     topMovers: TopMover[];
     recentAlerts: RecentAlert[];
     aiSuggestions: AISuggestion[];
@@ -64,6 +77,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function Dashboard({
     watchlistSummary = { total_coins: 0, alerts_active: 0, total_value: 0, initial_investment: 0, total_profit: 0, profit_percent: 0 },
+    portfolioHoldings = [],
     recentAlerts = [],
     topMovers = [],
     aiSuggestions = [],
@@ -84,11 +98,7 @@ export default function Dashboard({
     // Use live data for top movers and watchlist summary
     const currentTopMovers = liveData?.topMovers || topMovers;
     const currentWatchlistSummary = liveData?.watchlistSummary || watchlistSummary;
-
-    // Debug logging for live data
-    console.log('Dashboard: Live data received:', liveData);
-    console.log('Dashboard: Current watchlist summary:', currentWatchlistSummary);
-    console.log('Dashboard: Live loading:', liveLoading);
+    const currentPortfolioHoldings = liveData?.portfolioHoldings || portfolioHoldings;
 
     const formatPrice = (price: number): string => {
         if (!price) return '$0.00';
@@ -226,6 +236,10 @@ export default function Dashboard({
                         </CardContent>
                     </Card>
                 </div>
+
+                {/* Portfolio Holdings */}
+                <PortfolioHoldings holdings={currentPortfolioHoldings} />
+
                 {/* Performance Chart */}
                 <PerformanceChart availableSymbols={topMovers.map((m) => m.symbol)} />
 
