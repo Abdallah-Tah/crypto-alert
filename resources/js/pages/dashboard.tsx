@@ -1,10 +1,12 @@
-import { PerformanceChart } from '@/components/PerformanceChart';
 import { PortfolioHoldings } from '@/components/PortfolioHoldings';
 import AdvancedPortfolioMetrics from '@/components/dashboard/analytics/AdvancedPortfolioMetrics.jsx';
 import { HoldingsBreakdown } from '@/components/dashboard/analytics/HoldingsBreakdown';
 import MarketIntelligenceGrid from '@/components/dashboard/analytics/MarketIntelligenceGrid.jsx';
+import { MarketSentimentAnalysis } from '@/components/dashboard/analytics/MarketSentimentAnalysis';
 import PerformanceTimelineChart from '@/components/dashboard/analytics/PerformanceTimelineChart';
 import { PortfolioAllocationChart } from '@/components/dashboard/analytics/PortfolioAllocationChart';
+import { QuickActionsCenter } from '@/components/dashboard/analytics/QuickActionsCenter';
+import { TaxInsightsDashboard } from '@/components/dashboard/analytics/TaxInsightsDashboard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,13 +32,6 @@ interface TopMover {
     symbol: string;
     current_price: number;
     price_change_24h: number;
-}
-
-interface RecentAlert {
-    symbol: string;
-    message: string;
-    triggered_at: string;
-    type: string;
 }
 
 interface AISuggestion {
@@ -70,7 +65,6 @@ interface DashboardProps {
     watchlistSummary: WatchlistSummary;
     portfolioHoldings: PortfolioHoldingFromBackend[];
     topMovers: TopMover[];
-    recentAlerts: RecentAlert[];
     aiSuggestions: AISuggestion[];
     marketSummary: MarketSummary;
 }
@@ -85,7 +79,6 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function Dashboard({
     watchlistSummary = { total_coins: 0, alerts_active: 0, total_value: 0, initial_investment: 0, total_profit: 0, profit_percent: 0 },
     portfolioHoldings = [],
-    recentAlerts = [],
     topMovers = [],
     aiSuggestions = [],
     marketSummary = { total_market_cap: 0, btc_dominance: 0, market_change: 0 },
@@ -144,14 +137,16 @@ export default function Dashboard({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
 
-            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-6">
+            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-3 sm:p-6">
                 {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold text-foreground">Crypto Dashboard</h1>
-                        <p className="text-muted-foreground">Monitor your portfolio and get AI-powered insights</p>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex-1">
+                        <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Crypto Dashboard</h1>
+                        <p className="text-sm text-muted-foreground sm:text-base">Monitor your portfolio and get AI-powered insights</p>
                     </div>
-                    <div className="flex gap-2">
+
+                    {/* Desktop Actions */}
+                    <div className="hidden items-center gap-2 sm:flex">
                         <LivePriceIndicator
                             isActive={isActive}
                             lastUpdate={lastUpdate}
@@ -173,22 +168,47 @@ export default function Dashboard({
                             </Button>
                         </Link>
                     </div>
+
+                    {/* Mobile Actions */}
+                    <div className="flex items-center gap-2 sm:hidden">
+                        <LivePriceIndicator
+                            isActive={isActive}
+                            lastUpdate={lastUpdate}
+                            error={liveError}
+                            onToggle={() => (isActive ? pause() : resume())}
+                            onRefresh={refetch}
+                            className="mr-1"
+                        />
+                        <Link href="/advisor" className="flex-1">
+                            <Button size="sm" className="flex w-full items-center justify-center gap-1.5">
+                                <Brain className="h-3.5 w-3.5" />
+                                <span className="text-xs">AI Advisor</span>
+                            </Button>
+                        </Link>
+                        <Link href="/watchlist" className="flex-1">
+                            <Button size="sm" variant="outline" className="flex w-full items-center justify-center gap-1.5">
+                                <Star className="h-3.5 w-3.5" />
+                                <span className="text-xs">Watchlist</span>
+                            </Button>
+                        </Link>
+                    </div>
                 </div>
 
                 {/* Summary Cards */}
-                <div className="grid auto-rows-min gap-4 md:grid-cols-6">
+                <div className="grid auto-rows-min grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-6">
                     <Card className="relative overflow-hidden">
                         <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-50 opacity-50 dark:from-blue-950/20 dark:to-indigo-950/20" />
-                        <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Portfolio Value</CardTitle>
-                            <DollarSign className="h-4 w-4 text-blue-600" />
+                        <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2">
+                            <CardTitle className="text-xs font-medium sm:text-sm">Portfolio Value</CardTitle>
+                            <DollarSign className="h-3 w-3 text-blue-600 sm:h-4 sm:w-4" />
                         </CardHeader>
-                        <CardContent className="relative">
-                            <div className={`text-2xl font-bold transition-all duration-300 ${liveLoading ? 'text-blue-600' : ''}`}>
+                        <CardContent className="relative pb-2 sm:pb-6">
+                            <div className={`text-lg font-bold transition-all duration-300 sm:text-2xl ${liveLoading ? 'text-blue-600' : ''}`}>
                                 {formatPrice(currentWatchlistSummary.total_value)}
                             </div>
                             <p className="text-xs text-muted-foreground">
-                                Total watchlist value
+                                <span className="hidden sm:inline">Total watchlist value</span>
+                                <span className="sm:hidden">Total value</span>
                                 {liveData && !liveError && <span className="ml-1 text-green-500">● Live</span>}
                                 {liveLoading && <span className="ml-1 text-blue-500">● Updating...</span>}
                                 {liveError && <span className="ml-1 text-red-500">● Error</span>}
@@ -198,65 +218,84 @@ export default function Dashboard({
 
                     <Card className="relative overflow-hidden">
                         <div className="absolute inset-0 bg-gradient-to-br from-green-50 to-emerald-50 opacity-50 dark:from-green-950/20 dark:to-emerald-950/20" />
-                        <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Tracked Coins</CardTitle>
-                            <Star className="h-4 w-4 text-green-600" />
+                        <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2">
+                            <CardTitle className="text-xs font-medium sm:text-sm">Tracked Coins</CardTitle>
+                            <Star className="h-3 w-3 text-green-600 sm:h-4 sm:w-4" />
                         </CardHeader>
-                        <CardContent className="relative">
-                            <div className="text-2xl font-bold">{currentWatchlistSummary.total_coins}</div>
-                            <p className="text-xs text-muted-foreground">In your watchlist</p>
+                        <CardContent className="relative pb-2 sm:pb-6">
+                            <div className="text-lg font-bold sm:text-2xl">{currentWatchlistSummary.total_coins}</div>
+                            <p className="text-xs text-muted-foreground">
+                                <span className="hidden sm:inline">In your watchlist</span>
+                                <span className="sm:hidden">Watchlist</span>
+                            </p>
                         </CardContent>
                     </Card>
 
                     <Card className="relative overflow-hidden">
                         <div className="absolute inset-0 bg-gradient-to-br from-orange-50 to-red-50 opacity-50 dark:from-orange-950/20 dark:to-red-950/20" />
-                        <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Active Alerts</CardTitle>
-                            <Bell className="h-4 w-4 text-orange-600" />
+                        <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2">
+                            <CardTitle className="text-xs font-medium sm:text-sm">Active Alerts</CardTitle>
+                            <Bell className="h-3 w-3 text-orange-600 sm:h-4 sm:w-4" />
                         </CardHeader>
-                        <CardContent className="relative">
-                            <div className="text-2xl font-bold">{currentWatchlistSummary.alerts_active}</div>
-                            <p className="text-xs text-muted-foreground">Price alerts enabled</p>
+                        <CardContent className="relative pb-2 sm:pb-6">
+                            <div className="text-lg font-bold sm:text-2xl">{currentWatchlistSummary.alerts_active}</div>
+                            <p className="text-xs text-muted-foreground">
+                                <span className="hidden sm:inline">Price alerts enabled</span>
+                                <span className="sm:hidden">Alerts</span>
+                            </p>
                         </CardContent>
                     </Card>
 
                     <Card className="relative overflow-hidden">
                         <div className="absolute inset-0 bg-gradient-to-br from-purple-50 to-pink-50 opacity-50 dark:from-purple-950/20 dark:to-pink-950/20" />
-                        <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Market Cap</CardTitle>
-                            <TrendingUp className="h-4 w-4 text-purple-600" />
+                        <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2">
+                            <CardTitle className="text-xs font-medium sm:text-sm">Market Cap</CardTitle>
+                            <TrendingUp className="h-3 w-3 text-purple-600 sm:h-4 sm:w-4" />
                         </CardHeader>
-                        <CardContent className="relative">
-                            <div className="text-2xl font-bold">${(marketSummary.total_market_cap / 1e12).toFixed(1)}T</div>
-                            <p className="text-xs text-muted-foreground">Total crypto market</p>
+                        <CardContent className="relative pb-2 sm:pb-6">
+                            <div className="text-lg font-bold sm:text-2xl">${(marketSummary.total_market_cap / 1e12).toFixed(1)}T</div>
+                            <p className="text-xs text-muted-foreground">
+                                <span className="hidden sm:inline">Total crypto market</span>
+                                <span className="sm:hidden">Market</span>
+                            </p>
                         </CardContent>
                     </Card>
 
                     <Card className="relative overflow-hidden">
                         <div className="absolute inset-0 bg-gradient-to-br from-yellow-50 to-amber-50 opacity-50 dark:from-yellow-950/20 dark:to-amber-950/20" />
-                        <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Initial Investment</CardTitle>
-                            <DollarSign className="h-4 w-4 text-yellow-600" />
+                        <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2">
+                            <CardTitle className="text-xs font-medium sm:text-sm">Initial Investment</CardTitle>
+                            <DollarSign className="h-3 w-3 text-yellow-600 sm:h-4 sm:w-4" />
                         </CardHeader>
-                        <CardContent className="relative">
-                            <div className="text-2xl font-bold">{formatPrice(currentWatchlistSummary.initial_investment)}</div>
-                            <p className="text-xs text-muted-foreground">Total invested amount</p>
+                        <CardContent className="relative pb-2 sm:pb-6">
+                            <div className="text-lg font-bold sm:text-2xl">{formatPrice(currentWatchlistSummary.initial_investment)}</div>
+                            <p className="text-xs text-muted-foreground">
+                                <span className="hidden sm:inline">Total invested amount</span>
+                                <span className="sm:hidden">Invested</span>
+                            </p>
                         </CardContent>
                     </Card>
 
                     <Card className="relative overflow-hidden">
                         <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-purple-50 opacity-50 dark:from-indigo-950/20 dark:to-purple-950/20" />
-                        <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Profit/Loss</CardTitle>
-                            <TrendingUp className="h-4 w-4 text-indigo-600" />
+                        <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2">
+                            <CardTitle className="text-xs font-medium sm:text-sm">Profit/Loss</CardTitle>
+                            <TrendingUp className="h-3 w-3 text-indigo-600 sm:h-4 sm:w-4" />
                         </CardHeader>
-                        <CardContent className="relative">
-                            <div className={`text-2xl font-bold ${currentWatchlistSummary.total_profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <CardContent className="relative pb-2 sm:pb-6">
+                            <div
+                                className={`text-lg font-bold sm:text-2xl ${currentWatchlistSummary.total_profit >= 0 ? 'text-green-600' : 'text-red-600'}`}
+                            >
                                 {currentWatchlistSummary.total_profit >= 0 ? '+' : ''}
                                 {formatPrice(currentWatchlistSummary.total_profit)}
-                                <span className="ml-1 text-sm font-medium">({formatPercentage(currentWatchlistSummary.profit_percent)})</span>
+                                <span className="ml-1 text-xs font-medium sm:text-sm">
+                                    ({formatPercentage(currentWatchlistSummary.profit_percent)})
+                                </span>
                             </div>
-                            <p className="text-xs text-muted-foreground">Aggregate P/L since purchase</p>
+                            <p className="text-xs text-muted-foreground">
+                                <span className="hidden sm:inline">Aggregate P/L since purchase</span>
+                                <span className="sm:hidden">P/L</span>
+                            </p>
                         </CardContent>
                     </Card>
                 </div>
@@ -265,7 +304,7 @@ export default function Dashboard({
                 <PortfolioHoldings holdings={currentPortfolioHoldings} />
 
                 {/* Portfolio Allocation Chart and Holdings Breakdown - Side by side */}
-                <div className="grid gap-6 lg:grid-cols-2">
+                <div className="grid gap-4 md:gap-6 xl:grid-cols-2">
                     <PortfolioAllocationChart holdings={currentPortfolioHoldings} totalValue={currentWatchlistSummary.total_value} />
                     <HoldingsBreakdown holdings={currentPortfolioHoldings} totalValue={currentWatchlistSummary.total_value} />
                 </div>
@@ -279,9 +318,10 @@ export default function Dashboard({
                 {/* Advanced Portfolio Metrics */}
                 <AdvancedPortfolioMetrics holdings={currentPortfolioHoldings} totalValue={currentWatchlistSummary.total_value} />
 
-                {/* Legacy Performance Chart - Responsive width */}
-                <div className="col-span-full lg:col-span-2">
-                    <PerformanceChart availableSymbols={topMovers.map((m) => m.symbol)} />
+                {/* Tax Insights and Market Sentiment - Side by side */}
+                <div className="grid gap-4 md:gap-6 xl:grid-cols-2">
+                    <TaxInsightsDashboard />
+                    <MarketSentimentAnalysis />
                 </div>
 
                 <div className="col-span-full grid gap-6 lg:grid-cols-2">
@@ -310,7 +350,7 @@ export default function Dashboard({
                                 <div className="space-y-3">
                                     {aiSuggestions.slice(0, 3).map((suggestion, index) => (
                                         <div
-                                            key={index}
+                                            key={`${suggestion.id || suggestion.symbol}-${suggestion.created_at}-${index}`}
                                             className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
                                         >
                                             <div className="flex items-center gap-3">
@@ -399,40 +439,8 @@ export default function Dashboard({
                     </Card>
                 </div>
 
-                {/* Recent Alerts */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Bell className="h-5 w-5 text-blue-600" />
-                            Recent Alerts
-                        </CardTitle>
-                        <CardDescription>Latest price alerts and notifications</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {recentAlerts.length === 0 ? (
-                            <div className="py-8 text-center text-muted-foreground">
-                                <Bell className="mx-auto mb-3 h-12 w-12 opacity-50" />
-                                <p>No recent alerts</p>
-                                <p className="text-sm">Set up price alerts to stay informed</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                {recentAlerts.slice(0, 5).map((alert, index) => (
-                                    <div key={index} className="flex items-center justify-between rounded-lg border p-3">
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <Badge variant="outline">{alert.symbol}</Badge>
-                                                <span className="text-sm font-medium">{alert.message}</span>
-                                            </div>
-                                            <span className="text-xs text-muted-foreground">{alert.triggered_at}</span>
-                                        </div>
-                                        <Badge variant={alert.type === 'price' ? 'default' : 'secondary'}>{alert.type}</Badge>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                {/* Quick Actions Center - Replacing Recent Alerts */}
+                <QuickActionsCenter />
             </div>
         </AppLayout>
     );

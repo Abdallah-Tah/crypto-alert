@@ -5,6 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    {{--
     <meta name="apple-mobile-web-app-capable" content="no">
     <meta name="mobile-web-app-capable" content="no">
     <style>
@@ -16,7 +17,7 @@
             -ms-user-select: none;
             user-select: none;
         }
-    </style>
+    </style> --}}
     {{-- Inline script to detect system dark mode preference and apply it immediately --}}
     <script>
         (function () {

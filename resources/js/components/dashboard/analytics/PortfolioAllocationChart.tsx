@@ -126,11 +126,17 @@ export function PortfolioAllocationChart({ holdings = [], totalValue = 0, isLoad
     if (isLoading) {
         return (
             <Card className={cn('', className)}>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <div className="h-5 w-5 animate-pulse rounded-full bg-muted" />
-                        <div className="h-5 w-24 animate-pulse rounded bg-muted" />
-                    </CardTitle>
+                <CardHeader className="pb-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 animate-pulse rounded-lg bg-muted" />
+                            <div>
+                                <div className="mb-1 h-5 w-32 animate-pulse rounded bg-muted" />
+                                <div className="h-4 w-40 animate-pulse rounded bg-muted" />
+                            </div>
+                        </div>
+                        <div className="h-12 w-24 animate-pulse rounded-md bg-muted" />
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <div className="flex h-64 items-center justify-center">
@@ -145,18 +151,26 @@ export function PortfolioAllocationChart({ holdings = [], totalValue = 0, isLoad
     if (!allocationData || allocationData.length === 0) {
         return (
             <Card className={cn('', className)}>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Percent className="h-5 w-5 text-blue-600" />
-                        Portfolio Allocation
-                    </CardTitle>
-                    <CardDescription>Your cryptocurrency portfolio distribution</CardDescription>
+                <CardHeader className="pb-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/20">
+                                <Percent className="h-5 w-5 text-blue-600" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-lg font-semibold text-foreground">Portfolio Allocation</CardTitle>
+                                <CardDescription className="text-sm text-muted-foreground">Asset distribution overview</CardDescription>
+                            </div>
+                        </div>
+                    </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex h-64 flex-col items-center justify-center text-center">
-                        <DollarSign className="mb-4 h-12 w-12 text-muted-foreground" />
-                        <p className="text-muted-foreground">No holdings to display</p>
-                        <p className="mt-1 text-sm text-muted-foreground">Add some cryptocurrencies to your watchlist to see your allocation</p>
+                    <div className="flex h-48 flex-col items-center justify-center text-center">
+                        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted/50">
+                            <DollarSign className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                        <h3 className="mb-1 font-medium text-foreground">No holdings to display</h3>
+                        <p className="text-sm text-muted-foreground">Add cryptocurrencies to your watchlist to see allocation</p>
                     </div>
                 </CardContent>
             </Card>
@@ -165,12 +179,24 @@ export function PortfolioAllocationChart({ holdings = [], totalValue = 0, isLoad
 
     return (
         <Card className={cn('', className)}>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Percent className="h-5 w-5 text-blue-600" />
-                    Portfolio Allocation
-                </CardTitle>
-                <CardDescription>Your cryptocurrency portfolio distribution • Total: {formatCurrency(totalValue)}</CardDescription>
+            <CardHeader className="pb-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/20">
+                            <Percent className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div>
+                            <CardTitle className="text-lg font-semibold text-foreground">Portfolio Allocation</CardTitle>
+                            <CardDescription className="text-sm text-muted-foreground">Asset distribution overview</CardDescription>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="rounded-md bg-muted/50 px-3 py-1.5">
+                            <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Total Value</span>
+                            <p className="text-sm font-bold text-foreground">{formatCurrency(totalValue)}</p>
+                        </div>
+                    </div>
+                </div>
             </CardHeader>
             <CardContent>
                 {/* Pie Chart - Full width */}
@@ -195,21 +221,23 @@ export function PortfolioAllocationChart({ holdings = [], totalValue = 0, isLoad
                 </div>
 
                 {/* Summary Stats */}
-                <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
-                    <div className="rounded-lg bg-muted/50 p-3 text-center">
-                        <p className="text-sm font-medium">Assets</p>
-                        <p className="text-lg font-bold">{allocationData.length}</p>
+                <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+                    <div className="rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 p-3 text-center dark:from-blue-950/20 dark:to-blue-900/20">
+                        <p className="text-xs font-medium text-blue-700 dark:text-blue-300">Assets</p>
+                        <p className="text-lg font-bold text-blue-900 dark:text-blue-100">{allocationData.length}</p>
                     </div>
-                    <div className="rounded-lg bg-muted/50 p-3 text-center">
-                        <p className="text-sm font-medium">Largest</p>
-                        <p className="text-lg font-bold">{allocationData.length > 0 ? formatPercentage(allocationData[0].percentage) : '0%'}</p>
+                    <div className="rounded-lg bg-gradient-to-br from-purple-50 to-purple-100 p-3 text-center dark:from-purple-950/20 dark:to-purple-900/20">
+                        <p className="text-xs font-medium text-purple-700 dark:text-purple-300">Largest</p>
+                        <p className="text-lg font-bold text-purple-900 dark:text-purple-100">
+                            {allocationData.length > 0 ? formatPercentage(allocationData[0].percentage) : '0%'}
+                        </p>
                     </div>
-                    <div className="rounded-lg bg-muted/50 p-3 text-center">
-                        <p className="text-sm font-medium">Gainers</p>
+                    <div className="rounded-lg bg-gradient-to-br from-green-50 to-green-100 p-3 text-center dark:from-green-950/20 dark:to-green-900/20">
+                        <p className="text-xs font-medium text-green-700 dark:text-green-300">Gainers</p>
                         <p className="text-lg font-bold text-green-600">{allocationData.filter((item) => item.priceChange24h > 0).length}</p>
                     </div>
-                    <div className="rounded-lg bg-muted/50 p-3 text-center">
-                        <p className="text-sm font-medium">Losers</p>
+                    <div className="rounded-lg bg-gradient-to-br from-red-50 to-red-100 p-3 text-center dark:from-red-950/20 dark:to-red-900/20">
+                        <p className="text-xs font-medium text-red-700 dark:text-red-300">Losers</p>
                         <p className="text-lg font-bold text-red-600">{allocationData.filter((item) => item.priceChange24h < 0).length}</p>
                     </div>
                 </div>
