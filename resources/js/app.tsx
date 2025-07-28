@@ -19,6 +19,7 @@ configureEcho({
     wssPort: import.meta.env.VITE_REVERB_PORT,
     forceTLS: (import.meta.env.VITE_REVERB_SCHEME ?? 'https') === 'https',
     enabledTransports: ['ws', 'wss'],
+    encrypted: true,
 });
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';

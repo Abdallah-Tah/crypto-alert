@@ -1,4 +1,4 @@
-import { useEcho } from '@laravel/echo-react';
+// import { useEcho } from '@laravel/echo-react'; // Temporarily disabled to avoid WebSocket warnings
 import { useEffect, useState } from 'react';
 
 interface NotificationData {
@@ -32,15 +32,31 @@ export function useNotifications(userId?: number): UseNotificationsReturn {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(false);
-    const echo = useEcho();
+    // const echo = useEcho(); // Temporarily disabled to avoid WebSocket warnings
 
     // Fetch initial notifications
     useEffect(() => {
         fetchNotifications();
     }, []);
 
-    // Set up real-time listeners (temporarily disabled for debugging)
+    // Set up real-time listeners (temporarily disabled to avoid WebSocket warnings)
     useEffect(() => {
+        // Temporarily disable WebSocket connection to avoid HTTPS/HTTP mixed content warnings
+        console.log('Real-time notifications temporarily disabled');
+        console.log('Using API polling instead');
+        
+        // Add periodic polling for notifications every 30 seconds
+        if (!userId) return;
+        
+        const pollInterval = setInterval(() => {
+            fetchNotifications();
+        }, 30000);
+
+        return () => {
+            clearInterval(pollInterval);
+        };
+        
+        /* Original Echo WebSocket code - temporarily disabled
         if (!echo || !userId) {
             console.log('Echo not available or no userId:', { echo: !!echo, userId });
             return;
@@ -98,7 +114,7 @@ export function useNotifications(userId?: number): UseNotificationsReturn {
             console.error('Error setting up notification channel:', error);
         }
         */
-    }, [echo, userId]);
+    }, [userId]); // Removed echo dependency to avoid warnings
 
     const fetchNotifications = async () => {
         setLoading(true);
