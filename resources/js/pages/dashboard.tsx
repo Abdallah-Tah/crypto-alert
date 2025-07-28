@@ -1,6 +1,7 @@
 import { PerformanceChart } from '@/components/PerformanceChart';
 import { PortfolioHoldings } from '@/components/PortfolioHoldings';
 import AdvancedPortfolioMetrics from '@/components/dashboard/analytics/AdvancedPortfolioMetrics.jsx';
+import { HoldingsBreakdown } from '@/components/dashboard/analytics/HoldingsBreakdown';
 import MarketIntelligenceGrid from '@/components/dashboard/analytics/MarketIntelligenceGrid.jsx';
 import PerformanceTimelineChart from '@/components/dashboard/analytics/PerformanceTimelineChart';
 import { PortfolioAllocationChart } from '@/components/dashboard/analytics/PortfolioAllocationChart';
@@ -263,8 +264,11 @@ export default function Dashboard({
                 {/* Portfolio Holdings */}
                 <PortfolioHoldings holdings={currentPortfolioHoldings} />
 
-                {/* Portfolio Allocation Chart */}
-                <PortfolioAllocationChart holdings={currentPortfolioHoldings} totalValue={currentWatchlistSummary.total_value} />
+                {/* Portfolio Allocation Chart and Holdings Breakdown - Side by side */}
+                <div className="grid gap-6 lg:grid-cols-2">
+                    <PortfolioAllocationChart holdings={currentPortfolioHoldings} totalValue={currentWatchlistSummary.total_value} />
+                    <HoldingsBreakdown holdings={currentPortfolioHoldings} totalValue={currentWatchlistSummary.total_value} />
+                </div>
 
                 {/* Performance Timeline Chart - Full width, responsive */}
                 <PerformanceTimelineChart className="col-span-full" />

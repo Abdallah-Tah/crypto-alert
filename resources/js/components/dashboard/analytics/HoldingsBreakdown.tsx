@@ -1,9 +1,9 @@
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { AllocationData, PortfolioHolding } from '@/types/portfolio';
-import { DollarSign, Percent, TrendingDown, TrendingUp } from 'lucide-react';
+import { BarChart3, DollarSign, TrendingDown, TrendingUp } from 'lucide-react';
 import { useMemo } from 'react';
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 
 // Professional color palette for crypto assets
 const COLORS = [
@@ -19,18 +19,14 @@ const COLORS = [
     '#98d8c8', // Seafoam
 ];
 
-interface PortfolioAllocationChartProps {
+interface HoldingsBreakdownProps {
     holdings?: PortfolioHolding[];
     totalValue?: number;
     isLoading?: boolean;
     className?: string;
 }
 
-export function PortfolioAllocationChart({ holdings = [], totalValue = 0, isLoading = false, className = '' }: PortfolioAllocationChartProps) {
-    // Use media queries without TypeScript hook for now
-    const isMobile = window.innerWidth < 768;
-    const isTablet = window.innerWidth >= 768 && window.innerWidth < 1024;
-
+export function HoldingsBreakdown({ holdings = [], totalValue = 0, isLoading = false, className = '' }: HoldingsBreakdownProps) {
     const calculateHoldingValue = (holding: PortfolioHolding): number => {
         if (!holding.current_price || !holding.holdings_amount) return 0;
 
@@ -85,43 +81,6 @@ export function PortfolioAllocationChart({ holdings = [], totalValue = 0, isLoad
             .sort((a, b) => b.value - a.value); // Sort by value descending
     }, [holdings, totalValue]);
 
-    // Custom tooltip for the pie chart
-    const CustomTooltip = ({ active, payload }: any) => {
-        if (active && payload && payload.length) {
-            const data = payload[0].payload as AllocationData;
-            return (
-                <div className="rounded-lg border bg-background p-3 shadow-md">
-                    <div className="mb-2 flex items-center gap-2">
-                        {data.logo && <img src={data.logo} alt={data.symbol} className="h-6 w-6 rounded-full" />}
-                        <div>
-                            <p className="font-semibold">{data.name}</p>
-                            <p className="text-sm text-muted-foreground">{data.symbol}</p>
-                        </div>
-                    </div>
-                    <div className="space-y-1">
-                        <p className="text-sm">
-                            <span className="font-medium">Value:</span> {formatCurrency(data.value)}
-                        </p>
-                        <p className="text-sm">
-                            <span className="font-medium">Allocation:</span> {formatPercentage(data.percentage)}
-                        </p>
-                        <p className="text-sm">
-                            <span className="font-medium">Price:</span> {formatCurrency(data.currentPrice)}
-                        </p>
-                        <div className="flex items-center gap-1">
-                            <span className="text-sm font-medium">24h:</span>
-                            <span className={cn('flex items-center gap-1 text-sm', data.priceChange24h >= 0 ? 'text-green-600' : 'text-red-600')}>
-                                {data.priceChange24h >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                                {Math.abs(data.priceChange24h).toFixed(2)}%
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            );
-        }
-        return null;
-    };
-
     // Loading state
     if (isLoading) {
         return (
@@ -133,8 +92,23 @@ export function PortfolioAllocationChart({ holdings = [], totalValue = 0, isLoad
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex h-64 items-center justify-center">
-                        <div className="h-32 w-32 animate-pulse rounded-full bg-muted" />
+                    <div className="space-y-3">
+                        {[...Array(5)].map((_, i) => (
+                            <div key={i} className="flex items-center justify-between rounded-lg border p-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-3 w-3 animate-pulse rounded-full bg-muted" />
+                                    <div className="h-6 w-6 animate-pulse rounded-full bg-muted" />
+                                    <div className="space-y-1">
+                                        <div className="h-4 w-12 animate-pulse rounded bg-muted" />
+                                        <div className="h-3 w-20 animate-pulse rounded bg-muted" />
+                                    </div>
+                                </div>
+                                <div className="space-y-1 text-right">
+                                    <div className="h-4 w-12 animate-pulse rounded bg-muted" />
+                                    <div className="h-3 w-16 animate-pulse rounded bg-muted" />
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </CardContent>
             </Card>
@@ -147,16 +121,16 @@ export function PortfolioAllocationChart({ holdings = [], totalValue = 0, isLoad
             <Card className={cn('', className)}>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                        <Percent className="h-5 w-5 text-blue-600" />
-                        Portfolio Allocation
+                        <BarChart3 className="h-5 w-5 text-purple-600" />
+                        Holdings Breakdown
                     </CardTitle>
-                    <CardDescription>Your cryptocurrency portfolio distribution</CardDescription>
+                    <CardDescription>Detailed view of your portfolio holdings</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="flex h-64 flex-col items-center justify-center text-center">
                         <DollarSign className="mb-4 h-12 w-12 text-muted-foreground" />
                         <p className="text-muted-foreground">No holdings to display</p>
-                        <p className="mt-1 text-sm text-muted-foreground">Add some cryptocurrencies to your watchlist to see your allocation</p>
+                        <p className="mt-1 text-sm text-muted-foreground">Add some cryptocurrencies to your watchlist to see your breakdown</p>
                     </div>
                 </CardContent>
             </Card>
@@ -167,31 +141,49 @@ export function PortfolioAllocationChart({ holdings = [], totalValue = 0, isLoad
         <Card className={cn('', className)}>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                    <Percent className="h-5 w-5 text-blue-600" />
-                    Portfolio Allocation
+                    <BarChart3 className="h-5 w-5 text-purple-600" />
+                    Holdings Breakdown
                 </CardTitle>
-                <CardDescription>Your cryptocurrency portfolio distribution • Total: {formatCurrency(totalValue)}</CardDescription>
+                <CardDescription>Detailed view of your portfolio holdings • Total: {formatCurrency(totalValue)}</CardDescription>
             </CardHeader>
             <CardContent>
-                {/* Pie Chart - Full width */}
-                <div className="h-64 md:h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                            <Pie
-                                data={allocationData}
-                                cx="50%"
-                                cy="50%"
-                                outerRadius={isMobile ? 80 : isTablet ? 100 : 120}
-                                dataKey="value"
-                                stroke="none"
-                            >
-                                {allocationData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={entry.color} />
-                                ))}
-                            </Pie>
-                            <Tooltip content={<CustomTooltip />} />
-                        </PieChart>
-                    </ResponsiveContainer>
+                <div className="max-h-96 space-y-2 overflow-y-auto">
+                    {allocationData.map((item) => (
+                        <div
+                            key={item.symbol}
+                            className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50"
+                        >
+                            <div className="flex items-center gap-3">
+                                {/* Color indicator */}
+                                <div className="h-3 w-3 flex-shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
+
+                                {/* Coin info */}
+                                <div className="flex items-center gap-2">
+                                    {item.logo && <img src={item.logo} alt={item.symbol} className="h-6 w-6 rounded-full" />}
+                                    <div>
+                                        <p className="text-sm font-medium">{item.symbol}</p>
+                                        <p className="text-xs text-muted-foreground">{item.name}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Value and percentage */}
+                            <div className="text-right">
+                                <p className="text-sm font-semibold">{formatPercentage(item.percentage)}</p>
+                                <p className="text-xs text-muted-foreground">{formatCurrency(item.value)}</p>
+                                <div className="mt-1 flex items-center justify-end gap-1">
+                                    <Badge variant={item.priceChange24h >= 0 ? 'default' : 'destructive'} className="px-1 py-0 text-xs">
+                                        {item.priceChange24h >= 0 ? (
+                                            <TrendingUp className="mr-1 h-2 w-2" />
+                                        ) : (
+                                            <TrendingDown className="mr-1 h-2 w-2" />
+                                        )}
+                                        {Math.abs(item.priceChange24h).toFixed(1)}%
+                                    </Badge>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
                 </div>
 
                 {/* Summary Stats */}
