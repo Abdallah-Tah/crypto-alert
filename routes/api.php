@@ -12,7 +12,7 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
-// Crypto data API routes
+// Crypto data API routes - These can work without authentication
 Route::prefix('crypto')->group(function () {
     Route::get('/live-prices', [CryptoDataController::class, 'getLivePrices']);
     Route::get('/price/{symbol}', [CryptoDataController::class, 'getCoinPrice']);
@@ -29,23 +29,26 @@ Route::prefix('crypto')->group(function () {
             'search_test' => $searchTest
         ]);
     });
-})->middleware('auth');
+});
 
 // Portfolio Analytics API routes
-Route::prefix('portfolio')->middleware('auth')->group(function () {
+Route::prefix('portfolio')->middleware(['web', 'auth'])->group(function () {
     Route::get('/performance', [PortfolioAnalyticsController::class, 'getPerformanceTimeline']);
     Route::post('/snapshot', [PortfolioAnalyticsController::class, 'storeSnapshot']);
     Route::get('/metrics', [PortfolioAnalyticsController::class, 'getMetrics']);
 });
 
-// Market Intelligence routes
+// Dashboard API routes - Public endpoint that mirrors live-prices
+Route::get('/dashboard/live-data', [CryptoDataController::class, 'getLivePrices']);
+
+// Market Intelligence routes - Make these public as they're general market data
 Route::get('/market/intelligence', [MarketIntelligenceController::class, 'getMarketIntelligence']);
 Route::get('/market/fear-greed', [MarketIntelligenceController::class, 'getFearGreedIndex']);
 Route::get('/market/global', [MarketIntelligenceController::class, 'getGlobalMarketData']);
 Route::get('/market/gainers', [MarketIntelligenceController::class, 'getTopGainers']);
 Route::get('/market/losers', [MarketIntelligenceController::class, 'getTopLosers']);
 
-// Advanced Portfolio Metrics routes
+// Advanced Portfolio Metrics routes - Return mock data for unauthenticated users
 Route::get('/portfolio/advanced-metrics', [AdvancedPortfolioMetricsController::class, 'getAdvancedMetrics']);
 Route::get('/portfolio/risk-analysis', [AdvancedPortfolioMetricsController::class, 'getRiskAnalysis']);
 Route::get('/portfolio/performance-attribution', [AdvancedPortfolioMetricsController::class, 'getPerformanceAttribution']);

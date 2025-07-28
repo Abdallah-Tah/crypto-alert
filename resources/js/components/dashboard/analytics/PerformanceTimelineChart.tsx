@@ -134,6 +134,7 @@ const PerformanceTimelineChart: React.FC<PerformanceTimelineChartProps> = ({ cla
                     headers: {
                         Accept: 'application/json',
                         'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                     },
                     credentials: 'same-origin',
                 });
@@ -146,8 +147,11 @@ const PerformanceTimelineChart: React.FC<PerformanceTimelineChartProps> = ({ cla
                         console.warn('No timeline data available, using mock data');
                         setData(generateMockData(selectedTimeFrame));
                     }
+                } else if (response.status === 401) {
+                    console.warn('User not authenticated, using mock data');
+                    setData(generateMockData(selectedTimeFrame));
                 } else {
-                    console.warn('Failed to fetch performance data, using mock data');
+                    console.warn(`Failed to fetch performance data (${response.status}), using mock data`);
                     setData(generateMockData(selectedTimeFrame));
                 }
             } catch (error) {
