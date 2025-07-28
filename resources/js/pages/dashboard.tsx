@@ -350,7 +350,7 @@ export default function Dashboard({
                                 <div className="space-y-3">
                                     {aiSuggestions.slice(0, 3).map((suggestion, index) => (
                                         <div
-                                            key={`${suggestion.id || suggestion.symbol}-${suggestion.created_at}-${index}`}
+                                            key={index}
                                             className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
                                         >
                                             <div className="flex items-center gap-3">
