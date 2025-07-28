@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { LivePriceIndicator } from '@/components/ui/live-price-indicator';
 import { useLivePrices } from '@/hooks/use-live-prices';
 import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
+import { BreadcrumbItem } from '@/types';
 import { PortfolioHolding } from '@/types/portfolio';
 import { Head, Link } from '@inertiajs/react';
 import { ArrowRight, Bell, Brain, DollarSign, Star, TrendingDown, TrendingUp, Zap } from 'lucide-react';
