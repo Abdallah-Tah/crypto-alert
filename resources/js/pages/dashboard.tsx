@@ -14,6 +14,7 @@ import { BreadcrumbItem } from '@/types';
 import { PortfolioHolding } from '@/types/portfolio';
 import { Head, Link } from '@inertiajs/react';
 import { ArrowRight, Bell, Brain, DollarSign, Star, TrendingDown, TrendingUp, Zap } from 'lucide-react';
+import { useMemo } from 'react';
 
 interface WatchlistSummary {
     total_coins: number;
@@ -98,24 +99,28 @@ export default function Dashboard({
         pause,
         resume,
         isActive,
-    } = useLivePrices({ interval: 2000 }); // Update every 2 seconds for real-time data
+    } = useLivePrices({ interval: 30000 }); // Update every 30 seconds for smoother UX
 
-    // Use live data for top movers and watchlist summary
-    const currentTopMovers = liveData?.topMovers || topMovers;
-    const currentWatchlistSummary = liveData?.watchlistSummary || watchlistSummary;
-    const currentPortfolioHoldings: PortfolioHolding[] = ((liveData?.portfolioHoldings as PortfolioHoldingFromBackend[]) || portfolioHoldings).map(
-        (holding: PortfolioHoldingFromBackend, index: number) => ({
-            id: index + 1, // Generate ID since it's not provided
-            symbol: holding.symbol,
-            name: holding.name,
-            current_price: holding.current_price,
-            price_change_24h: holding.price_change_24h,
-            holdings_amount: holding.quantity, // Map quantity to holdings_amount
-            holdings_type: holding.holdings_type as 'usd_value' | 'coin_quantity',
-            logo: holding.logo,
-            total_value: holding.total_value,
-            quantity: holding.quantity, // Keep for backward compatibility
-        }),
+    // Use live data for top movers and watchlist summary (memoized to prevent unnecessary re-renders)
+    const currentTopMovers = useMemo(() => liveData?.topMovers || topMovers, [liveData?.topMovers, topMovers]);
+    const currentWatchlistSummary = useMemo(() => liveData?.watchlistSummary || watchlistSummary, [liveData?.watchlistSummary, watchlistSummary]);
+    const currentPortfolioHoldings: PortfolioHolding[] = useMemo(
+        () =>
+            ((liveData?.portfolioHoldings as PortfolioHoldingFromBackend[]) || portfolioHoldings).map(
+                (holding: PortfolioHoldingFromBackend, index: number) => ({
+                    id: index + 1, // Generate ID since it's not provided
+                    symbol: holding.symbol,
+                    name: holding.name,
+                    current_price: holding.current_price,
+                    price_change_24h: holding.price_change_24h,
+                    holdings_amount: holding.quantity, // Map quantity to holdings_amount
+                    holdings_type: holding.holdings_type as 'usd_value' | 'coin_quantity',
+                    logo: holding.logo,
+                    total_value: holding.total_value,
+                    quantity: holding.quantity, // Keep for backward compatibility
+                }),
+            ),
+        [liveData?.portfolioHoldings, portfolioHoldings],
     );
 
     const formatPrice = (price: number): string => {
@@ -261,7 +266,7 @@ export default function Dashboard({
                 {/* Portfolio Allocation Chart */}
                 <PortfolioAllocationChart holdings={currentPortfolioHoldings} totalValue={currentWatchlistSummary.total_value} />
 
-                {/* Performance Timeline Chart */}
+                {/* Performance Timeline Chart - Full width, responsive */}
                 <PerformanceTimelineChart className="col-span-full" />
 
                 {/* Market Intelligence Grid */}
@@ -270,12 +275,14 @@ export default function Dashboard({
                 {/* Advanced Portfolio Metrics */}
                 <AdvancedPortfolioMetrics holdings={currentPortfolioHoldings} totalValue={currentWatchlistSummary.total_value} />
 
-                {/* Legacy Performance Chart */}
-                <PerformanceChart availableSymbols={topMovers.map((m) => m.symbol)} />
+                {/* Legacy Performance Chart - Responsive width */}
+                <div className="col-span-full lg:col-span-2">
+                    <PerformanceChart availableSymbols={topMovers.map((m) => m.symbol)} />
+                </div>
 
-                <div className="grid gap-6 md:grid-cols-2">
-                    {/* Recent AI Suggestions */}
-                    <Card>
+                <div className="col-span-full grid gap-6 lg:grid-cols-2">
+                    {/* Recent AI Suggestions - Responsive layout */}
+                    <Card className="w-full">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Brain className="h-5 w-5 text-purple-600" />
@@ -298,12 +305,17 @@ export default function Dashboard({
                             ) : (
                                 <div className="space-y-3">
                                     {aiSuggestions.slice(0, 3).map((suggestion, index) => (
-                                        <div key={index} className="flex items-center justify-between rounded-lg border p-3">
+                                        <div
+                                            key={index}
+                                            className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
+                                        >
                                             <div className="flex items-center gap-3">
                                                 <Badge variant="outline">{suggestion.symbol}</Badge>
-                                                <span className="truncate text-sm text-foreground">{suggestion.suggestion?.substring(0, 60)}...</span>
+                                                <span className="text-sm text-foreground sm:truncate">
+                                                    {suggestion.suggestion?.substring(0, 60)}...
+                                                </span>
                                             </div>
-                                            <span className="text-xs text-muted-foreground">{suggestion.created_at}</span>
+                                            <span className="text-xs text-muted-foreground sm:text-right">{suggestion.created_at}</span>
                                         </div>
                                     ))}
                                     <Link href="/advisor">
@@ -317,8 +329,8 @@ export default function Dashboard({
                         </CardContent>
                     </Card>
 
-                    {/* Top Movers */}
-                    <Card>
+                    {/* Top Movers - Responsive layout */}
+                    <Card className="w-full">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Zap className="h-5 w-5 text-yellow-600" />
@@ -373,7 +385,7 @@ export default function Dashboard({
                                                 ) : (
                                                     <TrendingDown className="h-3 w-3" />
                                                 )}
-                                                {formatPercentage(coin.price_change_24h)}
+                                                {Math.abs(coin.price_change_24h).toFixed(2)}%
                                             </div>
                                         </div>
                                     ))}

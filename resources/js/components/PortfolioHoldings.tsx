@@ -111,9 +111,29 @@ export function PortfolioHoldings({ holdings, isLoading = false, className }: Po
                             >
                                 {/* Left side - Symbol and quantity */}
                                 <div className="flex items-center space-x-3">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-green-500/20 to-blue-500/20">
-                                        <span className="text-sm font-bold text-foreground">{cleanSymbol.slice(0, 3)}</span>
-                                    </div>
+                                    {holding.logo ? (
+                                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white p-1 dark:bg-gray-800">
+                                            <img
+                                                src={holding.logo}
+                                                alt={`${cleanSymbol} logo`}
+                                                className="h-8 w-8 rounded-full object-cover"
+                                                onError={(e) => {
+                                                    // Fallback to text circle if image fails to load
+                                                    const target = e.target as HTMLImageElement;
+                                                    target.style.display = 'none';
+                                                    const fallback = target.nextElementSibling as HTMLElement;
+                                                    if (fallback) fallback.style.display = 'flex';
+                                                }}
+                                            />
+                                            <div className="hidden h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-green-500/20 to-blue-500/20">
+                                                <span className="text-xs font-bold text-foreground">{cleanSymbol.slice(0, 3)}</span>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-green-500/20 to-blue-500/20">
+                                            <span className="text-sm font-bold text-foreground">{cleanSymbol.slice(0, 3)}</span>
+                                        </div>
+                                    )}
                                     <div>
                                         <div className="font-semibold text-foreground">{cleanSymbol}</div>
                                         <div className="text-sm text-muted-foreground">{formatQuantity(displayQuantity, cleanSymbol)}</div>
