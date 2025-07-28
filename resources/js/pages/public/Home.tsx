@@ -212,9 +212,9 @@ export default function Home({ features, stats, testimonials }: HomeProps) {
                     <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-4 lg:gap-8">
                         {stats.map((stat, index) => (
                             <div key={index} className="group animate-fadeIn text-center" style={{ animationDelay: `${index * 100 + 200}ms` }}>
-                                <div className="relative">
+                                <div className="relative h-32 sm:h-36">
                                     <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-green-400 to-emerald-400 opacity-20 blur transition-opacity duration-300 group-hover:opacity-40 sm:rounded-2xl"></div>
-                                    <div className="relative transform rounded-xl border border-green-500/20 bg-green-500/10 p-4 backdrop-blur-sm transition-all duration-300 group-hover:scale-105 group-hover:bg-green-500/20 sm:rounded-2xl sm:p-6">
+                                    <div className="relative flex h-full transform flex-col justify-center rounded-xl border border-green-500/20 bg-green-500/10 p-4 backdrop-blur-sm transition-all duration-300 group-hover:scale-105 group-hover:bg-green-500/20 sm:rounded-2xl sm:p-6">
                                         <div className="mb-1 bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-2xl font-bold text-transparent sm:mb-2 sm:text-3xl lg:text-4xl">
                                             {stat.value}
                                         </div>
