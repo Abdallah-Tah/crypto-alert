@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\NotificationCreated;
 use App\Models\User;
 use App\Models\Notification;
 use App\Models\Watchlist;
@@ -28,8 +29,8 @@ class NotificationService
         $triggeredAlerts = [];
 
         // Get all watchlists with active alerts
-        $watchlists = Watchlist::whereNotNull('alert_target')
-            ->where('alert_enabled', true)
+        $watchlists = Watchlist::whereNotNull('alert_price')
+            ->where('enabled', true)
             ->with('user')
             ->get();
 
@@ -57,7 +58,7 @@ class NotificationService
                 $this->sendAlert($watchlist, $alert, $currentPrice);
 
                 // Disable alert to prevent spam (user can re-enable)
-                $watchlist->update(['alert_enabled' => false]);
+                $watchlist->update(['enabled' => false]);
             }
         }
 
@@ -69,7 +70,7 @@ class NotificationService
      */
     private function evaluateAlert(Watchlist $watchlist, float $currentPrice): array
     {
-        $alertTarget = $watchlist->alert_target;
+        $alertTarget = $watchlist->alert_price;
         $alertType = $watchlist->alert_type ?? 'market';
 
         $triggered = false;
@@ -81,13 +82,13 @@ class NotificationService
             if ($currentPrice >= $alertTarget) {
                 $triggered = true;
                 $alertDirection = 'above';
-                $message = "{$watchlist->symbol} has reached your target price of $" . number_format($alertTarget, 2);
+                $message = "{$watchlist->symbol} has reached your target price of $" . number_format((float) $alertTarget, 2);
             }
         } elseif ($alertType === 'purchase' && $watchlist->purchase_price) {
             // Purchase price-based alerts (percentage gains/losses)
             $percentageChange = (($currentPrice - $watchlist->purchase_price) / $watchlist->purchase_price) * 100;
 
-            if (abs($percentageChange) >= abs($alertTarget)) {
+            if (abs($percentageChange) >= abs((float) $alertTarget)) {
                 $triggered = true;
                 $alertDirection = $percentageChange > 0 ? 'gain' : 'loss';
                 $message = "{$watchlist->symbol} has " .
@@ -122,13 +123,16 @@ class NotificationService
             'data' => [
                 'symbol' => $watchlist->symbol,
                 'current_price' => $currentPrice,
-                'alert_target' => $watchlist->alert_target,
+                'alert_target' => $watchlist->alert_price,
                 'alert_type' => $watchlist->alert_type,
                 'percentage_change' => $alert['percentage_change'],
                 'direction' => $alert['direction']
             ],
             'read_at' => null
         ]);
+
+        // Broadcast the notification via Reverb
+        broadcast(new NotificationCreated($notification));
 
         // Send email notification if enabled
         if ($user->email_notifications ?? true) {
@@ -175,7 +179,7 @@ class NotificationService
         $previousValue = Cache::get($cacheKey);
 
         $watchlistService = app(WatchlistService::class);
-        $currentPortfolio = $watchlistService->getPortfolioSummary($user->id);
+        $currentPortfolio = $watchlistService->getWatchlistSummary($user);
         $currentValue = $currentPortfolio['total_value'];
 
         $alerts = [];
@@ -209,7 +213,9 @@ class NotificationService
     public function getMarketSentimentAlerts(): array
     {
         try {
-            $sentiment = $this->aiAdvisorService->getMarketSentiment();
+            // Get market data for sentiment analysis
+            $marketData = $this->ccxtService->getTopCoins(10);
+            $sentiment = $this->aiAdvisorService->getMarketSentiment($marketData);
             $alerts = [];
 
             // Alert for extreme market conditions

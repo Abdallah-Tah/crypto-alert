@@ -429,7 +429,7 @@ class CCXTService
         $prices = [];
 
         foreach ($symbols as $symbol) {
-            $price = $this->getPrice($symbol);
+            $price = $this->getCurrentPrice($symbol);
             if ($price !== null) {
                 $prices[$symbol] = $price;
             }

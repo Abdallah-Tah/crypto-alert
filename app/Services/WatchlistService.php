@@ -440,20 +440,36 @@ class WatchlistService
      */
     private function getCoinLogo(string $symbol): string
     {
-        $logoMap = [
-            'BTC' => 'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
-            'ETH' => 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
-            'DOGE' => 'https://cryptologos.cc/logos/dogecoin-doge-logo.png',
-            'ETC' => 'https://cryptologos.cc/logos/ethereum-classic-etc-logo.png',
-            'ADA' => 'https://cryptologos.cc/logos/cardano-ada-logo.png',
-            'DOT' => 'https://cryptologos.cc/logos/polkadot-new-dot-logo.png',
-            'SOL' => 'https://cryptologos.cc/logos/solana-sol-logo.png',
-            'MATIC' => 'https://cryptologos.cc/logos/polygon-matic-logo.png',
-            'AVAX' => 'https://cryptologos.cc/logos/avalanche-avax-logo.png',
-            'LTC' => 'https://cryptologos.cc/logos/litecoin-ltc-logo.png'
-        ];
+        try {
+            // First try to get logo from database
+            $crypto = DB::table('cryptocurrencies')
+                ->where('symbol', $symbol)
+                ->orWhere('trading_symbol', $symbol)
+                ->first();
 
-        return $logoMap[$symbol] ?? '';
+            if ($crypto && $crypto->image_url) {
+                return $crypto->image_url;
+            }
+
+            // Fallback to hardcoded URLs if not found in database
+            $logoMap = [
+                'BTC' => 'https://coin-images.coingecko.com/coins/images/1/large/bitcoin.png',
+                'ETH' => 'https://coin-images.coingecko.com/coins/images/279/large/ethereum.png',
+                'DOGE' => 'https://coin-images.coingecko.com/coins/images/5/large/dogecoin.png',
+                'ETC' => 'https://coin-images.coingecko.com/coins/images/453/large/ethereum-classic-logo.png',
+                'ADA' => 'https://coin-images.coingecko.com/coins/images/975/large/cardano.png',
+                'DOT' => 'https://coin-images.coingecko.com/coins/images/12171/large/aJGBjJFU_400x400.jpg',
+                'SOL' => 'https://coin-images.coingecko.com/coins/images/4128/large/solana.png',
+                'MATIC' => 'https://coin-images.coingecko.com/coins/images/4713/large/matic-token-icon.png',
+                'AVAX' => 'https://coin-images.coingecko.com/coins/images/12559/large/coin-round-red.png',
+                'LTC' => 'https://coin-images.coingecko.com/coins/images/2/large/litecoin.png'
+            ];
+
+            return $logoMap[$symbol] ?? '';
+        } catch (Exception $e) {
+            Log::error("Failed to get coin logo for {$symbol}: " . $e->getMessage());
+            return '';
+        }
     }
 
     /**

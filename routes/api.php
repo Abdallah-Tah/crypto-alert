@@ -38,6 +38,14 @@ Route::prefix('portfolio')->middleware(['web', 'auth'])->group(function () {
     Route::get('/metrics', [PortfolioAnalyticsController::class, 'getMetrics']);
 });
 
+// Notifications API routes
+Route::prefix('notifications')->middleware(['web', 'auth'])->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\NotificationController::class, 'index']);
+    Route::post('/{id}/read', [\App\Http\Controllers\Api\NotificationController::class, 'markAsRead']);
+    Route::post('/mark-all-read', [\App\Http\Controllers\Api\NotificationController::class, 'markAllAsRead']);
+    Route::post('/check-alerts', [\App\Http\Controllers\Api\NotificationController::class, 'checkAlerts']);
+});
+
 // Dashboard API routes - Public endpoint that mirrors live-prices
 Route::get('/dashboard/live-data', [CryptoDataController::class, 'getLivePrices']);
 
