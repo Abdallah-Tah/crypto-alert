@@ -24,9 +24,23 @@ configureEcho({
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
+// Import page components from both uppercase and lowercase directories
+const pages = import.meta.glob('./Pages/**/*.tsx');
+const lowerPages = import.meta.glob('./pages/**/*.tsx');
+
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
-    resolve: (name) => resolvePageComponent(`./pages/${name}.tsx`, import.meta.glob('./pages/**/*.tsx')),
+    resolve: (name) => {
+        const pagePath = `./Pages/${name}.tsx`;
+        if (pages[pagePath]) {
+            return resolvePageComponent(pagePath, pages);
+        }
+        const lowerPagePath = `./pages/${name}.tsx`;
+        if (lowerPages[lowerPagePath]) {
+            return resolvePageComponent(lowerPagePath, lowerPages);
+        }
+        throw new Error(`Page not found: ${pagePath}`);
+    },
     setup({ el, App, props }) {
         const root = createRoot(el);
 

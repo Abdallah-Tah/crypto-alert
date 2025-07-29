@@ -305,4 +305,69 @@ class MarketIntelligenceService
 
         return $base . $confidenceText;
     }
+
+    /**
+     * Get advanced market insights for portfolio analysis
+     */
+    public function getAdvancedMarketInsights(): array
+    {
+        try {
+            $marketIntelligence = $this->getMarketIntelligence();
+            $sentiment = $this->getMarketSentiment();
+
+            return [
+                'market_sentiment' => $sentiment,
+                'fear_greed_index' => $marketIntelligence['fearGreed'],
+                'global_market_cap' => $marketIntelligence['globalMarket']['total_market_cap_usd'] ?? 0,
+                'market_dominance' => $marketIntelligence['globalMarket']['market_cap_percentage'] ?? [],
+                'top_gainers' => $marketIntelligence['topGainers'],
+                'top_losers' => $marketIntelligence['topLosers'],
+                'market_trends' => [
+                    'bullish_signals' => $sentiment['sentiment'] === 'bullish' ? ['Strong upward momentum', 'Increased institutional adoption'] : [],
+                    'bearish_signals' => $sentiment['sentiment'] === 'bearish' ? ['Market correction underway', 'Risk-off sentiment'] : [],
+                    'neutral_signals' => $sentiment['sentiment'] === 'neutral' ? ['Consolidation phase', 'Waiting for catalysts'] : []
+                ],
+                'risk_factors' => [
+                    'volatility_level' => $this->assessVolatilityLevel($marketIntelligence),
+                    'correlation_risk' => 'high', // Most crypto assets are highly correlated
+                    'regulatory_risk' => 'medium'
+                ],
+                'opportunities' => [
+                    'dca_favorable' => $sentiment['sentiment'] === 'bearish',
+                    'profit_taking' => $sentiment['sentiment'] === 'extremely_bullish',
+                    'rebalancing_optimal' => in_array($sentiment['sentiment'], ['neutral', 'slightly_bearish'])
+                ]
+            ];
+        } catch (\Exception $e) {
+            Log::error('Failed to get advanced market insights: ' . $e->getMessage());
+            return [
+                'market_sentiment' => ['sentiment' => 'neutral', 'confidence' => 50],
+                'fear_greed_index' => null,
+                'global_market_cap' => 0,
+                'market_dominance' => [],
+                'top_gainers' => [],
+                'top_losers' => [],
+                'market_trends' => ['bullish_signals' => [], 'bearish_signals' => [], 'neutral_signals' => []],
+                'risk_factors' => ['volatility_level' => 'medium', 'correlation_risk' => 'high', 'regulatory_risk' => 'medium'],
+                'opportunities' => ['dca_favorable' => false, 'profit_taking' => false, 'rebalancing_optimal' => true]
+            ];
+        }
+    }
+
+    /**
+     * Assess current market volatility level
+     */
+    private function assessVolatilityLevel(array $marketData): string
+    {
+        $fearGreed = $marketData['fearGreed'];
+        if (!$fearGreed)
+            return 'medium';
+
+        $value = $fearGreed['value'];
+        if ($value <= 20 || $value >= 80)
+            return 'high';
+        if ($value <= 40 || $value >= 60)
+            return 'medium';
+        return 'low';
+    }
 }

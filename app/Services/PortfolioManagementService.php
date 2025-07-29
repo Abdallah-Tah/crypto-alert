@@ -268,6 +268,14 @@ class PortfolioManagementService
         ];
     }
 
+    /**
+     * Public method to get user holdings for external services
+     */
+    public function getUserPortfolioHoldings(int $userId): array
+    {
+        return $this->getUserHoldings($userId);
+    }
+
     // Private helper methods
 
     private function getUserHoldings(int $userId): array

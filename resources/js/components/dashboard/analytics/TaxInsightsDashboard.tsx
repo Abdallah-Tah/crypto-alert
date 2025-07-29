@@ -160,7 +160,7 @@ export function TaxInsightsDashboard({ className = '' }: TaxInsightsDashboardPro
                             <span className="text-xs">Full Tax Report</span>
                         </Button>
                     </Link>
-                    <Link href="/advisor" className="flex-1">
+                    <Link href="/portfolio/optimize-tax" className="flex-1">
                         <Button size="sm" className="flex w-full items-center justify-center gap-2">
                             <Calculator className="h-3 w-3" />
                             <span className="text-xs">Optimize Taxes</span>

@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Head, router } from '@inertiajs/react';
-import { AlertTriangle, Calculator, Calendar, DollarSign, FileText, Target, TrendingDown, TrendingUp } from 'lucide-react';
+import { AlertTriangle, Calculator, Calendar, CheckCircle, DollarSign, FileText, Target, TrendingDown, TrendingUp } from 'lucide-react';
 import { useState } from 'react';
 
 interface TaxOptimizationData {
@@ -23,12 +23,28 @@ interface TaxOptimizationData {
     }>;
 }
 
-interface Props {
-    taxData?: TaxOptimizationData;
+interface OptimizationResult {
+    tax_optimization?: any;
+    tax_loss_harvesting?: any;
+    year_end_strategies?: any;
+    compliance_notes?: any;
+    estimated_savings?: number;
+    recommendations?: {
+        immediate_actions?: any[];
+        year_end_deadline?: string;
+    };
 }
 
-export default function TaxOptimization({ taxData }: Props) {
+interface Props {
+    taxData?: TaxOptimizationData;
+    optimizationData?: OptimizationResult;
+    message?: string;
+}
+
+export default function TaxOptimization({ taxData, optimizationData, message }: Props) {
     const [isOptimizing, setIsOptimizing] = useState(false);
+    const [optimizationResult, setOptimizationResult] = useState<OptimizationResult | null>(optimizationData || null);
+    const [showSuccessMessage, setShowSuccessMessage] = useState(!!message);
 
     const defaultData: TaxOptimizationData = {
         currentTaxLiability: 12500,
@@ -69,26 +85,60 @@ export default function TaxOptimization({ taxData }: Props) {
     const handleOptimizeNow = async () => {
         setIsOptimizing(true);
         try {
+            // Use Inertia router for proper authentication and CSRF handling
             router.post(
                 '/portfolio/optimize-tax',
                 {},
                 {
-                    onSuccess: () => {
-                        // Handle success
+                    onSuccess: (page) => {
+                        // Handle success - Inertia returns page data
+                        console.log('Tax optimization completed:', page);
+
+                        // Check for direct props or flash message data
+                        const flashMessage = page.props?.flash?.message || page.props?.message;
+                        const responseData = page.props?.optimizationData || page.props?.flash?.optimizationData;
+
+                        if (responseData) {
+                            setOptimizationResult(responseData);
+                            setShowSuccessMessage(true);
+
+                            // Show success notification
+                            alert('✅ ' + (flashMessage || 'Tax optimization completed successfully! Check the results below.'));
+
+                            // Auto-hide success message after 10 seconds
+                            setTimeout(() => {
+                                setShowSuccessMessage(false);
+                            }, 10000);
+                        } else if (flashMessage) {
+                            // Show message even without detailed data
+                            alert('✅ ' + flashMessage);
+                            setShowSuccessMessage(true);
+                            setTimeout(() => {
+                                setShowSuccessMessage(false);
+                            }, 5000);
+                        } else {
+                            // Fallback for when no data is returned but operation was successful
+                            alert('✅ Tax optimization analysis completed successfully!');
+                        }
                     },
-                    onError: () => {
-                        // Handle error
+                    onError: (errors) => {
+                        // Handle error - show error message
+                        console.error('Tax optimization failed:', errors);
+                        alert('❌ Tax optimization failed. Please try again or contact support.');
                     },
                     onFinish: () => {
                         setIsOptimizing(false);
                     },
+                    preserveScroll: true,
+                    preserveState: true,
                 },
             );
-        } catch {
+        } catch (error) {
+            console.error('Tax optimization error:', error);
+            alert('❌ An unexpected error occurred during tax optimization.');
             setIsOptimizing(false);
         }
     };
-
     const getRiskColor = (risk: string) => {
         switch (risk) {
             case 'low':
@@ -107,14 +157,60 @@ export default function TaxOptimization({ taxData }: Props) {
             <Head title="Tax Optimization" />
 
             <div className="space-y-6">
+                {/* Success Message */}
+                {showSuccessMessage && (
+                    <Card className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20">
+                        <CardHeader className="pb-3">
+                            <CardTitle className="flex items-center gap-2 text-green-800 dark:text-green-400">
+                                <CheckCircle className="h-5 w-5" />
+                                Tax Optimization Complete!
+                            </CardTitle>
+                            <CardDescription className="text-green-700 dark:text-green-300">
+                                Your portfolio has been analyzed and optimization recommendations are ready.
+                            </CardDescription>
+                        </CardHeader>
+                        {optimizationResult && (
+                            <CardContent>
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                                    <div className="text-center">
+                                        <div className="text-2xl font-bold text-green-600">
+                                            ${optimizationResult.estimated_savings?.toLocaleString() || '0'}
+                                        </div>
+                                        <div className="text-sm text-green-600">Potential Savings</div>
+                                    </div>
+                                    <div className="text-center">
+                                        <div className="text-2xl font-bold text-blue-600">
+                                            {optimizationResult.recommendations?.immediate_actions?.length || 0}
+                                        </div>
+                                        <div className="text-sm text-blue-600">Immediate Actions</div>
+                                    </div>
+                                    <div className="text-center">
+                                        <div className="text-2xl font-bold text-purple-600">
+                                            {optimizationResult.year_end_strategies ? Object.keys(optimizationResult.year_end_strategies).length : 0}
+                                        </div>
+                                        <div className="text-sm text-purple-600">Year-End Strategies</div>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        )}
+                    </Card>
+                )}
+
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Tax Optimization</h1>
                         <p className="mt-1 text-gray-600 dark:text-gray-400">Minimize your tax liability with strategic portfolio management</p>
                     </div>
-                    <Button onClick={handleOptimizeNow} disabled={isOptimizing} className="bg-green-600 hover:bg-green-700">
-                        {isOptimizing ? 'Optimizing...' : 'Optimize Now'}
+                    <Button onClick={handleOptimizeNow} disabled={isOptimizing} className="min-w-[140px] bg-green-600 hover:bg-green-700">
+                        {isOptimizing ? (
+                            <div className="flex items-center gap-2">
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                                Analyzing...
+                            </div>
+                        ) : (
+                            'Optimize Now'
+                        )}
                     </Button>
                 </div>
 
@@ -240,7 +336,7 @@ export default function TaxOptimization({ taxData }: Props) {
                     </CardHeader>
                     <CardContent>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                            <Button variant="outline" className="h-auto justify-start p-4" onClick={() => router.visit('/tax-reports')}>
+                            <Button variant="outline" className="h-auto justify-start p-4" onClick={() => router.visit('/tax-report')}>
                                 <FileText className="mr-3 h-4 w-4" />
                                 <div className="text-left">
                                     <div className="font-medium">Generate Tax Report</div>
@@ -248,7 +344,7 @@ export default function TaxOptimization({ taxData }: Props) {
                                 </div>
                             </Button>
 
-                            <Button variant="outline" className="h-auto justify-start p-4" onClick={() => router.visit('/portfolio/rebalance')}>
+                            <Button variant="outline" className="h-auto justify-start p-4" onClick={() => router.visit('/portfolio/rebalancing')}>
                                 <TrendingUp className="mr-3 h-4 w-4" />
                                 <div className="text-left">
                                     <div className="font-medium">Rebalance Portfolio</div>

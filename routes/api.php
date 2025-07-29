@@ -36,6 +36,14 @@ Route::prefix('portfolio')->middleware(['web', 'auth'])->group(function () {
     Route::get('/performance', [PortfolioAnalyticsController::class, 'getPerformanceTimeline']);
     Route::post('/snapshot', [PortfolioAnalyticsController::class, 'storeSnapshot']);
     Route::get('/metrics', [PortfolioAnalyticsController::class, 'getMetrics']);
+
+    // Enterprise Portfolio Management API routes
+    Route::post('/optimize-tax', [\App\Http\Controllers\PortfolioManagementController::class, 'optimizeTax']);
+    Route::get('/full-analysis', [\App\Http\Controllers\PortfolioManagementController::class, 'getFullAnalysis']);
+    Route::post('/setup-alerts', [\App\Http\Controllers\PortfolioManagementController::class, 'setupSmartAlerts']);
+    Route::get('/optimization-recommendations', [\App\Http\Controllers\PortfolioManagementController::class, 'getOptimizationRecommendations']);
+    Route::post('/tax-loss-harvesting/execute', [\App\Http\Controllers\PortfolioManagementController::class, 'executeTaxLossHarvesting']);
+    Route::post('/rebalancing/execute', [\App\Http\Controllers\PortfolioManagementController::class, 'executeRebalancing']);
 });
 
 // Notifications API routes

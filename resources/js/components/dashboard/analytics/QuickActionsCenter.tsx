@@ -4,12 +4,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { cn } from '@/lib/utils';
 import { Link } from '@inertiajs/react';
 import { AlertTriangle, ArrowRightLeft, Calculator, FileText, Target, TrendingUp, Zap } from 'lucide-react';
+import type { ComponentType, SVGProps } from 'react';
 
 interface QuickAction {
     id: string;
     title: string;
     description: string;
-    icon: any;
+    icon: ComponentType<SVGProps<SVGSVGElement>>;
     href: string;
     priority: 'high' | 'medium' | 'low';
     category: 'tax' | 'portfolio' | 'alert' | 'analysis';
@@ -27,7 +28,7 @@ export function QuickActionsCenter({ className = '' }: QuickActionsCenterProps) 
             title: 'Tax-Loss Harvesting',
             description: 'Offset gains with DOGE losses',
             icon: Calculator,
-            href: '/advisor?action=tax-optimize',
+            href: '/portfolio/tax-loss-harvesting',
             priority: 'high',
             category: 'tax',
             urgent: true,
@@ -37,7 +38,7 @@ export function QuickActionsCenter({ className = '' }: QuickActionsCenterProps) 
             title: 'Rebalance Portfolio',
             description: 'ETH allocation is 8% above target',
             icon: ArrowRightLeft,
-            href: '/advisor?action=rebalance',
+            href: '/portfolio/rebalancing',
             priority: 'medium',
             category: 'portfolio',
         },
@@ -46,7 +47,7 @@ export function QuickActionsCenter({ className = '' }: QuickActionsCenterProps) 
             title: 'Set Stop Losses',
             description: '2 positions lack risk protection',
             icon: Target,
-            href: '/watchlist?action=alerts',
+            href: '/watchlist',
             priority: 'high',
             category: 'alert',
             urgent: true,
@@ -65,7 +66,7 @@ export function QuickActionsCenter({ className = '' }: QuickActionsCenterProps) 
             title: 'Performance Analysis',
             description: 'Review last 30 days metrics',
             icon: TrendingUp,
-            href: '/advisor?tab=performance',
+            href: '/portfolio/full-analysis',
             priority: 'low',
             category: 'analysis',
         },
@@ -74,7 +75,7 @@ export function QuickActionsCenter({ className = '' }: QuickActionsCenterProps) 
             title: 'Market Alert Setup',
             description: 'Fear & Greed Index threshold',
             icon: AlertTriangle,
-            href: '/notifications?type=market',
+            href: '/notifications',
             priority: 'medium',
             category: 'alert',
         },

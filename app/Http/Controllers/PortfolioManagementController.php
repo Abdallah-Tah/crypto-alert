@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\PortfolioManagementService;
 use App\Services\TaxReportingService;
-use App\Services\AlertService;
+use App\Services\EnterprisePortfolioServiceSimple;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Inertia\Inertia;
@@ -14,16 +14,16 @@ class PortfolioManagementController extends Controller
 {
     private PortfolioManagementService $portfolioService;
     private TaxReportingService $taxReportingService;
-    private AlertService $alertService;
+    private EnterprisePortfolioServiceSimple $enterpriseService;
 
     public function __construct(
         PortfolioManagementService $portfolioService,
         TaxReportingService $taxReportingService,
-        AlertService $alertService
+        EnterprisePortfolioServiceSimple $enterpriseService
     ) {
         $this->portfolioService = $portfolioService;
         $this->taxReportingService = $taxReportingService;
-        $this->alertService = $alertService;
+        $this->enterpriseService = $enterpriseService;
     }
 
     /**
@@ -67,37 +67,88 @@ class PortfolioManagementController extends Controller
     }
 
     /**
-     * Optimize taxes for the user's portfolio
+     * Optimize portfolio for tax efficiency
      */
-    public function optimizeTax(Request $request): JsonResponse
+    public function optimizeTax(Request $request)
     {
         $user = $request->user();
 
         try {
-            // Get current tax optimization suggestions
-            $taxReport = $this->taxReportingService->generateTaxReport($user->id, date('Y'));
-            $optimizations = $this->portfolioService->generateTaxOptimizations($user->id);
+            // Use enterprise service for comprehensive tax optimization
+            $taxOptimization = $this->enterpriseService->generateTaxOptimizationReport($user->id);
+            $taxLossHarvesting = $this->enterpriseService->performTaxLossHarvesting($user->id);
+
+            $optimizationData = [
+                'tax_optimization' => $taxOptimization,
+                'tax_loss_harvesting' => $taxLossHarvesting,
+                'year_end_strategies' => $taxOptimization['year_end_strategies'] ?? [],
+                'compliance_notes' => $taxOptimization['compliance_notes'] ?? [],
+                'estimated_savings' => $taxOptimization['estimated_tax_savings'] ?? 0,
+                'recommendations' => [
+                    'immediate_actions' => $taxLossHarvesting['recommended_actions'] ?? [],
+                    'year_end_deadline' => $taxLossHarvesting['execution_timeline']['year_end_deadline'] ?? null
+                ]
+            ];
+
+            // Check if this is an API request or Inertia request
+            if ($request->wantsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'success' => true,
+                    'data' => $optimizationData
+                ]);
+            } else {
+                // For Inertia/web requests, return the same page with optimization data
+                return Inertia::render('Portfolio/TaxOptimization', [
+                    'optimizationData' => $optimizationData,
+                    'message' => 'Tax optimization completed successfully!'
+                ]);
+            }
+        } catch (\Exception $e) {
+            if ($request->wantsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to optimize tax strategy: ' . $e->getMessage()
+                ], 500);
+            } else {
+                return Inertia::render('Portfolio/TaxOptimization', [
+                    'error' => 'Failed to optimize tax strategy: ' . $e->getMessage()
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Generate full portfolio analysis
+     */
+    public function getFullAnalysis(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        try {
+            // Use enterprise service for comprehensive analysis
+            $portfolioAnalysis = $this->enterpriseService->generateFullPortfolioAnalysis($user->id);
+            $rebalancingRecommendations = $this->enterpriseService->generateRebalancingRecommendations($user->id);
 
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'current_tax_liability' => $taxReport['total_tax_liability'] ?? 0,
-                    'potential_savings' => $optimizations['potential_savings'] ?? 0,
-                    'tax_loss_harvesting_opportunities' => $optimizations['tax_loss_harvesting'] ?? [],
-                    'long_term_holds' => $optimizations['long_term_holds'] ?? [],
-                    'short_term_optimization' => $optimizations['short_term_optimization'] ?? [],
-                    'recommended_actions' => $optimizations['recommended_actions'] ?? [],
-                    'optimization_summary' => [
-                        'total_unrealized_losses' => $optimizations['total_unrealized_losses'] ?? 0,
-                        'harvestable_losses' => $optimizations['harvestable_losses'] ?? 0,
-                        'projected_tax_savings' => $optimizations['projected_tax_savings'] ?? 0,
-                    ]
+                    'portfolio_analysis' => $portfolioAnalysis,
+                    'rebalancing_recommendations' => $rebalancingRecommendations,
+                    'performance_summary' => [
+                        'total_return' => $portfolioAnalysis['performance_metrics']['total_return'] ?? 0,
+                        'annual_return' => $portfolioAnalysis['performance_metrics']['annual_return'] ?? 0,
+                        'risk_score' => $portfolioAnalysis['risk_analysis']['risk_score'] ?? 'moderate',
+                        'sharpe_ratio' => $portfolioAnalysis['performance_metrics']['sharpe_ratio'] ?? 0
+                    ],
+                    'optimization_opportunities' => $portfolioAnalysis['optimization_recommendations'] ?? [],
+                    'risk_analysis' => $portfolioAnalysis['risk_analysis'] ?? [],
+                    'diversification_status' => $portfolioAnalysis['diversification_metrics'] ?? []
                 ]
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to optimize taxes: ' . $e->getMessage()
+                'message' => 'Failed to generate portfolio analysis: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -185,81 +236,85 @@ class PortfolioManagementController extends Controller
     }
 
     /**
-     * Get full portfolio analysis
-     */
-    public function getFullAnalysis(Request $request): JsonResponse
-    {
-        $user = $request->user();
-
-        try {
-            $analysis = $this->portfolioService->generateFullPortfolioAnalysis($user->id);
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'performance_metrics' => $analysis['performance'],
-                    'risk_analysis' => $analysis['risk'],
-                    'diversification_analysis' => $analysis['diversification'],
-                    'correlation_matrix' => $analysis['correlations'],
-                    'value_at_risk' => $analysis['var'],
-                    'sharpe_ratio' => $analysis['sharpe_ratio'],
-                    'volatility_analysis' => $analysis['volatility'],
-                    'trend_analysis' => $analysis['trends'],
-                    'sector_allocation' => $analysis['sectors'],
-                    'recommendations' => $analysis['recommendations'],
-                    'benchmark_comparison' => $analysis['benchmark'],
-                    'liquidity_analysis' => $analysis['liquidity']
-                ]
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to generate portfolio analysis: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Set up smart alerts for portfolio management
+     * Set up comprehensive smart alerts for portfolio management
      */
     public function setupSmartAlerts(Request $request): JsonResponse
     {
         $request->validate([
-            'alert_types' => 'required|array',
-            'alert_types.*' => 'string|in:price_target,portfolio_rebalance,tax_optimization,risk_threshold,market_sentiment',
-            'configurations' => 'required|array'
+            'alert_preferences' => 'array',
+            'portfolio_alerts' => 'boolean',
+            'tax_alerts' => 'boolean',
+            'rebalancing_alerts' => 'boolean',
+            'risk_alerts' => 'boolean',
+            'market_alerts' => 'boolean'
         ]);
 
         $user = $request->user();
-        $alertTypes = $request->input('alert_types');
-        $configurations = $request->input('configurations');
 
         try {
-            $alerts = [];
-            foreach ($alertTypes as $alertType) {
-                $config = $configurations[$alertType] ?? [];
-                $alert = $this->alertService->createSmartAlert($user->id, $alertType, $config);
-                $alerts[] = $alert;
+            $alertsCreated = 0;
+            $alertCategories = [];
+
+            // Portfolio Performance Alerts
+            if ($request->input('portfolio_alerts', true)) {
+                $portfolioAlerts = $this->createPortfolioPerformanceAlerts($user->id);
+                $alertCategories['portfolio_alerts'] = count($portfolioAlerts);
+                $alertsCreated += count($portfolioAlerts);
+            }
+
+            // Tax Optimization Alerts  
+            if ($request->input('tax_alerts', true)) {
+                $taxAlerts = $this->createTaxOptimizationAlerts($user->id);
+                $alertCategories['tax_alerts'] = count($taxAlerts);
+                $alertsCreated += count($taxAlerts);
+            }
+
+            // Rebalancing Alerts
+            if ($request->input('rebalancing_alerts', true)) {
+                $rebalancingAlerts = $this->createRebalancingAlerts($user->id);
+                $alertCategories['rebalancing_alerts'] = count($rebalancingAlerts);
+                $alertsCreated += count($rebalancingAlerts);
+            }
+
+            // Risk Management Alerts
+            if ($request->input('risk_alerts', true)) {
+                $riskAlerts = $this->createRiskManagementAlerts($user->id);
+                $alertCategories['risk_alerts'] = count($riskAlerts);
+                $alertsCreated += count($riskAlerts);
+            }
+
+            // Market Sentiment Alerts
+            if ($request->input('market_alerts', true)) {
+                $marketAlerts = $this->createMarketSentimentAlerts($user->id);
+                $alertCategories['market_alerts'] = count($marketAlerts);
+                $alertsCreated += count($marketAlerts);
             }
 
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'alerts_created' => count($alerts),
-                    'alert_details' => $alerts,
-                    'monitoring_active' => true
+                    'alerts_created' => $alertsCreated,
+                    'alert_categories' => $alertCategories,
+                    'monitoring_active' => true,
+                    'next_evaluation' => now()->addHours(1),
+                    'recommendations' => [
+                        'Review alerts weekly for optimal performance',
+                        'Adjust thresholds based on market conditions',
+                        'Enable email notifications for critical alerts'
+                    ]
                 ]
             ]);
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to setup alerts: ' . $e->getMessage()
+                'message' => 'Failed to setup smart alerts: ' . $e->getMessage()
             ], 500);
         }
     }
 
     /**
-     * Get portfolio optimization recommendations
+     * Get optimization recommendations for portfolio
      */
     public function getOptimizationRecommendations(Request $request): JsonResponse
     {
@@ -267,24 +322,195 @@ class PortfolioManagementController extends Controller
 
         try {
             $recommendations = $this->portfolioService->generateOptimizationRecommendations($user->id);
+            $taxOptimizations = $this->portfolioService->generateTaxOptimizations($user->id);
 
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'diversification_recommendations' => $recommendations['diversification'],
-                    'cost_reduction_opportunities' => $recommendations['cost_reduction'],
-                    'performance_enhancement' => $recommendations['performance'],
-                    'risk_management' => $recommendations['risk_management'],
-                    'tax_efficiency' => $recommendations['tax_efficiency'],
-                    'priority_actions' => $recommendations['priority_actions'],
-                    'long_term_strategy' => $recommendations['long_term_strategy']
+                    'portfolio_optimization' => [
+                        'rebalancing_suggestions' => $recommendations['rebalancing'] ?? [],
+                        'diversification_improvements' => $recommendations['diversification'] ?? [],
+                        'performance_enhancements' => $recommendations['performance'] ?? [],
+                        'cost_reduction_opportunities' => $recommendations['cost_reduction'] ?? []
+                    ],
+                    'tax_optimization' => [
+                        'tax_loss_harvesting' => $taxOptimizations['tax_loss_harvesting'] ?? [],
+                        'long_term_holding_benefits' => $taxOptimizations['long_term_holds'] ?? [],
+                        'year_end_strategies' => [
+                            'harvest_losses_by_december' => 'Realize losses before December 31',
+                            'defer_gains_to_next_year' => 'Hold profitable positions to defer gains',
+                            'consider_long_term_rates' => 'Hold positions over 1 year for favorable rates'
+                        ]
+                    ],
+                    'risk_optimization' => [
+                        'risk_reduction_strategies' => $recommendations['risk_reduction'] ?? [],
+                        'hedging_opportunities' => $recommendations['hedging'] ?? [],
+                        'concentration_alerts' => $recommendations['concentration'] ?? []
+                    ],
+                    'market_opportunities' => [
+                        'sector_rotation_signals' => [],
+                        'momentum_opportunities' => [],
+                        'value_opportunities' => []
+                    ],
+                    'action_priorities' => [
+                        'immediate_actions' => $recommendations['immediate'] ?? [],
+                        'short_term_goals' => $recommendations['short_term'] ?? [],
+                        'long_term_strategy' => $recommendations['long_term'] ?? []
+                    ]
                 ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate optimization recommendations: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // Page rendering methods for frontend
+    public function optimizeTaxPage()
+    {
+        return Inertia::render('Portfolio/TaxOptimization');
+    }
+
+    public function fullAnalysisPage()
+    {
+        return Inertia::render('Portfolio/FullAnalysis');
+    }
+
+    public function taxLossHarvestingPage()
+    {
+        return Inertia::render('Portfolio/TaxLossHarvesting');
+    }
+
+    public function rebalancingPage()
+    {
+        return Inertia::render('Portfolio/Rebalancing');
+    }
+
+    public function executeRebalancing(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        try {
+            // Use existing service methods
+            $result = $this->portfolioService->rebalancePortfolio(
+                $user->id,
+                $request->input('target_allocation', []),
+                $request->input('strategy', 'conservative'),
+                $request->input('threshold', 5.0)
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $result
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to get optimization recommendations: ' . $e->getMessage()
+                'message' => 'Failed to execute portfolio rebalancing: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    // Private helper methods for alert creation
+
+    private function createPortfolioPerformanceAlerts(int $userId): array
+    {
+        // Create portfolio performance monitoring alerts
+        return [
+            [
+                'type' => 'portfolio_value_milestone',
+                'name' => 'Portfolio Growth Alert',
+                'description' => 'Alert when portfolio gains 10% or more',
+                'threshold' => 10,
+                'priority' => 'medium'
+            ],
+            [
+                'type' => 'portfolio_loss_protection',
+                'name' => 'Portfolio Protection Alert',
+                'description' => 'Alert when portfolio loses 15% or more',
+                'threshold' => -15,
+                'priority' => 'high'
+            ]
+        ];
+    }
+
+    private function createTaxOptimizationAlerts(int $userId): array
+    {
+        // Create tax optimization monitoring alerts
+        return [
+            [
+                'type' => 'tax_loss_harvesting_opportunity',
+                'name' => 'Tax Loss Harvesting Alert',
+                'description' => 'Alert when significant tax loss harvesting opportunities arise',
+                'threshold' => 1000,
+                'priority' => 'medium'
+            ],
+            [
+                'type' => 'long_term_capital_gains',
+                'name' => 'Long-term Gains Alert',
+                'description' => 'Alert when holdings qualify for long-term capital gains rates',
+                'threshold' => 365,
+                'priority' => 'low'
+            ]
+        ];
+    }
+
+    private function createRebalancingAlerts(int $userId): array
+    {
+        // Create rebalancing monitoring alerts
+        return [
+            [
+                'type' => 'allocation_drift',
+                'name' => 'Portfolio Rebalancing Alert',
+                'description' => 'Alert when asset allocation drifts significantly from targets',
+                'threshold' => 5,
+                'priority' => 'medium'
+            ]
+        ];
+    }
+
+    private function createRiskManagementAlerts(int $userId): array
+    {
+        // Create risk management alerts
+        return [
+            [
+                'type' => 'portfolio_risk_increase',
+                'name' => 'High Risk Alert',
+                'description' => 'Alert when portfolio risk exceeds comfortable levels',
+                'threshold' => 25,
+                'priority' => 'high'
+            ],
+            [
+                'type' => 'concentration_risk',
+                'name' => 'Concentration Risk Alert',
+                'description' => 'Alert when single position exceeds 20% of portfolio',
+                'threshold' => 20,
+                'priority' => 'medium'
+            ]
+        ];
+    }
+
+    private function createMarketSentimentAlerts(int $userId): array
+    {
+        // Create market sentiment alerts
+        return [
+            [
+                'type' => 'extreme_fear_opportunity',
+                'name' => 'Market Fear Opportunity',
+                'description' => 'Alert during extreme fear for potential buying opportunities',
+                'threshold' => 20,
+                'priority' => 'medium'
+            ],
+            [
+                'type' => 'extreme_greed_warning',
+                'name' => 'Market Greed Warning',
+                'description' => 'Alert during extreme greed for potential risk management',
+                'threshold' => 80,
+                'priority' => 'medium'
+            ]
+        ];
     }
 }

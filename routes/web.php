@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\CryptoDataController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DebugController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PortfolioManagementController;
 use App\Http\Controllers\PublicController;
 use App\Http\Controllers\TaxReportController;
 use App\Http\Controllers\WatchlistController;
@@ -76,6 +77,27 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/generate', [TaxReportController::class, 'generate'])->name('generate');
         Route::post('/export-csv', [TaxReportController::class, 'exportCSV'])->name('export-csv');
         Route::get('/optimization-suggestions', [TaxReportController::class, 'getOptimizationSuggestions'])->name('optimization-suggestions');
+    });
+
+    // Portfolio Management routes (Enterprise Features)
+    Route::prefix('portfolio')->name('portfolio.')->group(function () {
+        // Page routes
+        Route::get('/optimize-tax', [PortfolioManagementController::class, 'showTaxOptimization'])->name('optimize-tax.page');
+        Route::get('/full-analysis', [PortfolioManagementController::class, 'showFullAnalysis'])->name('full-analysis.page');
+        Route::get('/tax-loss-harvesting', [PortfolioManagementController::class, 'showTaxLossHarvesting'])->name('tax-loss-harvesting.page');
+        Route::get('/rebalancing', [PortfolioManagementController::class, 'showRebalancing'])->name('rebalancing.page');
+
+        // API routes for functionality
+        Route::post('/optimize-tax', [PortfolioManagementController::class, 'optimizeTax'])->name('optimize-tax');
+        Route::get('/full-analysis', [PortfolioManagementController::class, 'getFullAnalysis'])->name('full-analysis');
+        Route::post('/setup-alerts', [PortfolioManagementController::class, 'setupSmartAlerts'])->name('setup-alerts');
+        Route::get('/optimization-recommendations', [PortfolioManagementController::class, 'getOptimizationRecommendations'])->name('optimization-recommendations');
+
+        // Tax Loss Harvesting
+        Route::post('/tax-loss-harvesting/execute', [PortfolioManagementController::class, 'executeTaxLossHarvesting'])->name('tax-loss-harvesting.execute');
+
+        // Portfolio Rebalancing
+        Route::post('/rebalancing/execute', [PortfolioManagementController::class, 'executeRebalancing'])->name('rebalancing.execute');
     });
 
     // Debug routes

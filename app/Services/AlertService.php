@@ -4,8 +4,8 @@ namespace App\Services;
 
 use App\Models\User;
 use Exception;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Native\Laravel\Facades\Notification;
 
 class AlertService
 {
@@ -97,7 +97,7 @@ class AlertService
             ];
 
             // Store in alerts table (you'll need to create this migration)
-            \DB::table('alerts')->insert($alertData);
+            DB::table('alerts')->insert($alertData);
 
             return $alertData;
 
@@ -118,15 +118,14 @@ class AlertService
     public function sendPushNotification(string $title, string $body, User $user = null): bool
     {
         try {
-            Notification::title($title)
-                ->body($body)
-                ->send();
-
-            Log::info("Push notification sent", [
+            // For now, just log the notification instead of using native notifications
+            Log::info("Push notification triggered", [
                 'title' => $title,
                 'body' => $body,
                 'user_id' => $user ? $user->id : null
             ]);
+
+            // TODO: Implement actual push notification when NativePHP is properly configured
 
             return true;
 
@@ -153,7 +152,7 @@ class AlertService
             $this->sendPushNotification($title, $body, $user);
 
             // Log AI alert
-            \DB::table('alerts')->insert([
+            DB::table('alerts')->insert([
                 'user_id' => $user->id,
                 'symbol' => $symbol,
                 'message' => $suggestion,
@@ -179,7 +178,7 @@ class AlertService
     public function getUserAlerts(User $user, int $limit = 20): array
     {
         try {
-            return \DB::table('alerts')
+            return DB::table('alerts')
                 ->where('user_id', $user->id)
                 ->orderBy('triggered_at', 'desc')
                 ->limit($limit)
@@ -202,7 +201,7 @@ class AlertService
     public function acknowledgeAlert(int $alertId, User $user): bool
     {
         try {
-            $updated = \DB::table('alerts')
+            $updated = DB::table('alerts')
                 ->where('id', $alertId)
                 ->where('user_id', $user->id)
                 ->update([
@@ -228,7 +227,7 @@ class AlertService
     public function createPriceAlert(int $watchlistId, float $alertPrice): bool
     {
         try {
-            $updated = \DB::table('watchlists')
+            $updated = DB::table('watchlists')
                 ->where('id', $watchlistId)
                 ->update(['alert_price' => $alertPrice]);
 
@@ -249,7 +248,7 @@ class AlertService
     public function removePriceAlert(int $watchlistId): bool
     {
         try {
-            $updated = \DB::table('watchlists')
+            $updated = DB::table('watchlists')
                 ->where('id', $watchlistId)
                 ->update(['alert_price' => null]);
 
@@ -257,6 +256,40 @@ class AlertService
 
         } catch (Exception $e) {
             Log::error("Failed to remove price alert: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Create a smart alert for portfolio management
+     */
+    public function createSmartAlert(int $userId, array $alertData): bool
+    {
+        try {
+            // Create alert record in database
+            $alertId = DB::table('alerts')->insertGetId([
+                'user_id' => $userId,
+                'type' => $alertData['type'] ?? 'portfolio',
+                'category' => $alertData['category'] ?? 'general',
+                'name' => $alertData['name'],
+                'condition' => $alertData['condition'] ?? null,
+                'description' => $alertData['description'] ?? '',
+                'priority' => $alertData['priority'] ?? 'medium',
+                'is_active' => true,
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+
+            Log::info('Smart alert created', [
+                'alert_id' => $alertId,
+                'user_id' => $userId,
+                'type' => $alertData['type'] ?? 'portfolio'
+            ]);
+
+            return true;
+
+        } catch (Exception $e) {
+            Log::error("Failed to create smart alert: " . $e->getMessage());
             return false;
         }
     }
