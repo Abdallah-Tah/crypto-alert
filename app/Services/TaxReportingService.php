@@ -32,6 +32,14 @@ class TaxReportingService
         $startDate = Carbon::create($taxYear, 1, 1)->startOfDay();
         $endDate = Carbon::create($taxYear, 12, 31)->endOfDay();
 
+        $holdingsSummary = $this->getHoldingsSummary($userId);
+        $unrealizedData = $this->calculateUnrealizedGainsLosses($userId);
+        $realizedData = $this->calculateRealizedGainsLosses($userId, $startDate, $endDate);
+
+        // Check if user has any transactions for more accurate reporting
+        $transactionCount = Transaction::forUser($userId)->count();
+        $hasTransactions = $transactionCount > 0;
+
         return [
             'user_id' => $userId,
             'tax_year' => $taxYear,
@@ -39,110 +47,278 @@ class TaxReportingService
                 'start_date' => $startDate->toDateString(),
                 'end_date' => $endDate->toDateString()
             ],
-            'holdings_summary' => $this->getHoldingsSummary($userId),
-            'realized_gains_losses' => $this->calculateRealizedGainsLosses($userId, $startDate, $endDate),
-            'unrealized_gains_losses' => $this->calculateUnrealizedGainsLosses($userId),
+            'holdings_summary' => $holdingsSummary,
+            'realized_gains_losses' => $realizedData,
+            'unrealized_gains_losses' => $unrealizedData,
             'tax_forms' => $this->generateTaxForms($userId, $taxYear),
             'tax_optimization' => $this->generateTaxOptimizationSuggestions($userId),
+            'portfolio_summary' => [
+                'current_portfolio_value' => $holdingsSummary['total_current_value'],
+                'total_unrealized_gains' => $unrealizedData['total_unrealized_gains'],
+                'total_unrealized_losses' => $unrealizedData['total_unrealized_losses'],
+                'note' => $hasTransactions
+                    ? 'These are unrealized gains/losses from holdings you still own. They become taxable only when you sell.'
+                    : 'Add your buy/sell transactions in the Transaction Management section for accurate tax calculations.'
+            ],
+            'data_completeness' => [
+                'has_transactions' => $hasTransactions,
+                'transaction_count' => $transactionCount,
+                'watchlist_entries' => $holdingsSummary['total_holdings'],
+                'recommendation' => $hasTransactions
+                    ? 'Your tax report is based on actual transaction data.'
+                    : 'For accurate tax reporting, please add your cryptocurrency buy and sell transactions.'
+            ],
             'generated_at' => now()
         ];
     }
 
     /**
-     * Get summary of all holdings
+     * Get summary of all holdings using watchlist data (since no transactions exist)
      */
     private function getHoldingsSummary(int $userId): array
     {
-        $portfolio = $this->watchlistService->getPortfolioSummary($userId);
+        $user = User::find($userId);
+
+        // Get watchlist entries with holdings
+        $watchlistItems = Watchlist::where('user_id', $userId)
+            ->whereNotNull('holdings_amount')
+            ->where('holdings_amount', '>', 0)
+            ->get();
+
+        $totalCurrentValue = 0;
+        $totalCostBasis = 0;
+        $holdingsCount = $watchlistItems->count();
+        $byAsset = [];
+
+        foreach ($watchlistItems as $item) {
+            // Get current price
+            $currentPrice = $this->getCurrentPrice($item->symbol);
+
+            // Calculate values based on holdings type
+            if ($item->holdings_type === 'usd_value' && $item->purchase_price) {
+                // User entered USD value, calculate coin quantity
+                $coinQuantity = $item->holdings_amount / $item->purchase_price;
+                $currentValue = $coinQuantity * $currentPrice;
+                $costBasis = $item->holdings_amount; // Original USD investment
+            } elseif ($item->holdings_type === 'coin_quantity') {
+                // User entered coin quantity
+                $coinQuantity = $item->holdings_amount;
+                $currentValue = $coinQuantity * $currentPrice;
+                $costBasis = $item->purchase_price ? ($coinQuantity * $item->purchase_price) : $currentValue;
+            } else {
+                // Fallback
+                $coinQuantity = $item->holdings_amount;
+                $currentValue = $currentPrice * $coinQuantity;
+                $costBasis = $currentValue; // Assume break-even if no purchase price
+            }
+
+            $gainLoss = $currentValue - $costBasis;
+            $gainLossPercent = $costBasis > 0 ? ($gainLoss / $costBasis) * 100 : 0;
+
+            $totalCurrentValue += $currentValue;
+            $totalCostBasis += $costBasis;
+
+            $byAsset[] = [
+                'symbol' => $item->symbol,
+                'quantity' => $coinQuantity,
+                'current_price' => $currentPrice,
+                'current_value' => $currentValue,
+                'cost_basis' => $costBasis,
+                'gain_loss' => $gainLoss,
+                'gain_loss_percent' => $gainLossPercent
+            ];
+        }
+
+        $unrealizedGainLoss = $totalCurrentValue - $totalCostBasis;
+        $unrealizedPercentage = $totalCostBasis > 0 ? ($unrealizedGainLoss / $totalCostBasis) * 100 : 0;
 
         return [
-            'total_holdings' => $portfolio['holdings_count'],
-            'total_current_value' => $portfolio['total_value'],
-            'total_cost_basis' => $portfolio['total_invested'],
-            'unrealized_gain_loss' => $portfolio['total_gain_loss'],
-            'unrealized_percentage' => $portfolio['percentage_change'],
-            'by_asset' => $portfolio['portfolio']
+            'total_holdings' => $holdingsCount,
+            'total_current_value' => $totalCurrentValue,
+            'total_cost_basis' => $totalCostBasis,
+            'unrealized_gain_loss' => $unrealizedGainLoss,
+            'unrealized_percentage' => $unrealizedPercentage,
+            'by_asset' => $byAsset
         ];
     }
 
     /**
-     * Calculate realized gains and losses (from actual sales/trades)
-     * Note: This is a mock implementation. In production, you'd track actual transactions.
+     * Get current holdings from transaction history (FIFO method)
      */
-    private function calculateRealizedGainsLosses(int $userId, Carbon $startDate, Carbon $endDate): array
+    private function getCurrentHoldingsFromTransactions(int $userId): array
     {
-        // Mock data - in production, this would come from actual transaction records
-        $mockTransactions = [
-            [
-                'symbol' => 'BTC',
-                'type' => 'sell',
-                'quantity' => 0.1,
-                'sale_price' => 45000,
-                'purchase_price' => 40000,
-                'sale_date' => '2024-06-15',
-                'purchase_date' => '2024-01-15',
-                'holding_period' => 'long_term', // > 1 year
-                'gain_loss' => 500
-            ],
-            [
-                'symbol' => 'ETH',
-                'type' => 'sell',
-                'quantity' => 2,
-                'sale_price' => 2500,
-                'purchase_price' => 2800,
-                'sale_date' => '2024-08-20',
-                'purchase_date' => '2024-07-01',
-                'holding_period' => 'short_term', // < 1 year
-                'gain_loss' => -600
-            ]
-        ];
+        $holdings = [];
 
-        $shortTermGains = 0;
-        $shortTermLosses = 0;
-        $longTermGains = 0;
-        $longTermLosses = 0;
+        // Get all transactions for this user, ordered by date
+        $transactions = Transaction::forUser($userId)
+            ->orderBy('transaction_date', 'asc')
+            ->get();
 
-        foreach ($mockTransactions as $transaction) {
-            if ($transaction['holding_period'] === 'short_term') {
-                if ($transaction['gain_loss'] > 0) {
-                    $shortTermGains += $transaction['gain_loss'];
-                } else {
-                    $shortTermLosses += abs($transaction['gain_loss']);
-                }
-            } else {
-                if ($transaction['gain_loss'] > 0) {
-                    $longTermGains += $transaction['gain_loss'];
-                } else {
-                    $longTermLosses += abs($transaction['gain_loss']);
+        foreach ($transactions as $transaction) {
+            $symbol = $transaction->symbol;
+
+            if (!isset($holdings[$symbol])) {
+                $holdings[$symbol] = [
+                    'quantity' => 0,
+                    'total_cost' => 0,
+                    'transactions' => []
+                ];
+            }
+
+            if ($transaction->type === 'buy') {
+                $holdings[$symbol]['quantity'] += $transaction->quantity;
+                $holdings[$symbol]['total_cost'] += $transaction->total_value + $transaction->fees;
+                $holdings[$symbol]['transactions'][] = $transaction;
+            } elseif ($transaction->type === 'sell') {
+                // Reduce holdings using FIFO
+                $sellQuantity = $transaction->quantity;
+                $remainingToSell = $sellQuantity;
+
+                // Calculate cost basis of sold coins using FIFO
+                foreach ($holdings[$symbol]['transactions'] as $key => $buyTransaction) {
+                    if ($remainingToSell <= 0)
+                        break;
+
+                    $availableFromThisBuy = min($buyTransaction->quantity, $remainingToSell);
+                    $costBasisReduction = ($buyTransaction->total_value + $buyTransaction->fees) * ($availableFromThisBuy / $buyTransaction->quantity);
+
+                    $holdings[$symbol]['total_cost'] -= $costBasisReduction;
+                    $holdings[$symbol]['quantity'] -= $availableFromThisBuy;
+                    $remainingToSell -= $availableFromThisBuy;
+
+                    // Update or remove this buy transaction
+                    $buyTransaction->quantity -= $availableFromThisBuy;
+                    if ($buyTransaction->quantity <= 0) {
+                        unset($holdings[$symbol]['transactions'][$key]);
+                    }
                 }
             }
         }
 
+        return $holdings;
+    }
+
+    /**
+     * Get current market price for a symbol
+     */
+    private function getCurrentPrice(string $symbol): float
+    {
+        try {
+            $priceData = $this->ccxtService->getCurrentPrice($symbol);
+            if (is_array($priceData) && isset($priceData['price'])) {
+                return (float) $priceData['price'];
+            } elseif (is_numeric($priceData)) {
+                return (float) $priceData;
+            }
+            return 0;
+        } catch (\Exception $e) {
+            Log::error("Failed to get current price for {$symbol}: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Format holdings for display
+     */
+    private function formatHoldingsByAsset(array $holdings): array
+    {
+        $formatted = [];
+
+        foreach ($holdings as $symbol => $holding) {
+            if ($holding['quantity'] > 0) {
+                $currentPrice = $this->getCurrentPrice($symbol);
+                $currentValue = $holding['quantity'] * $currentPrice;
+                $gainLoss = $currentValue - $holding['total_cost'];
+
+                $formatted[] = [
+                    'symbol' => $symbol,
+                    'quantity' => $holding['quantity'],
+                    'current_price' => $currentPrice,
+                    'current_value' => $currentValue,
+                    'cost_basis' => $holding['total_cost'],
+                    'gain_loss' => $gainLoss,
+                    'gain_loss_percent' => $holding['total_cost'] > 0 ? ($gainLoss / $holding['total_cost']) * 100 : 0
+                ];
+            }
+        }
+
+        return $formatted;
+    }
+
+    /**
+     * Calculate realized gains and losses from actual sell transactions
+     */
+    private function calculateRealizedGainsLosses(int $userId, Carbon $startDate, Carbon $endDate): array
+    {
+        // Get all sell transactions within the tax year
+        $sellTransactions = Transaction::forUser($userId)
+            ->where('type', 'sell')
+            ->inDateRange($startDate, $endDate)
+            ->orderBy('transaction_date', 'asc')
+            ->get();
+
+        $realizedGainsLosses = [];
+        $summary = [
+            'short_term_gains' => 0,
+            'short_term_losses' => 0,
+            'short_term_net' => 0,
+            'long_term_gains' => 0,
+            'long_term_losses' => 0,
+            'long_term_net' => 0,
+            'total_net_gain_loss' => 0
+        ];
+
+        foreach ($sellTransactions as $sellTransaction) {
+            $gainsLosses = $this->calculateGainsForSale($userId, $sellTransaction);
+            $realizedGainsLosses = array_merge($realizedGainsLosses, $gainsLosses);
+
+            // Update summary
+            foreach ($gainsLosses as $gainLoss) {
+                $amount = $gainLoss['gain_loss'];
+                $isLongTerm = $gainLoss['holding_period'] === 'long_term';
+
+                if ($amount > 0) {
+                    // Gain
+                    if ($isLongTerm) {
+                        $summary['long_term_gains'] += $amount;
+                    } else {
+                        $summary['short_term_gains'] += $amount;
+                    }
+                } else {
+                    // Loss
+                    $lossAmount = abs($amount);
+                    if ($isLongTerm) {
+                        $summary['long_term_losses'] += $lossAmount;
+                    } else {
+                        $summary['short_term_losses'] += $lossAmount;
+                    }
+                }
+            }
+        }
+
+        // Calculate net amounts
+        $summary['short_term_net'] = $summary['short_term_gains'] - $summary['short_term_losses'];
+        $summary['long_term_net'] = $summary['long_term_gains'] - $summary['long_term_losses'];
+        $summary['total_net_gain_loss'] = $summary['short_term_net'] + $summary['long_term_net'];
+
         return [
-            'transactions' => $mockTransactions,
-            'summary' => [
-                'short_term_gains' => $shortTermGains,
-                'short_term_losses' => $shortTermLosses,
-                'short_term_net' => $shortTermGains - $shortTermLosses,
-                'long_term_gains' => $longTermGains,
-                'long_term_losses' => $longTermLosses,
-                'long_term_net' => $longTermGains - $longTermLosses,
-                'total_net_gain_loss' => ($shortTermGains - $shortTermLosses) + ($longTermGains - $longTermLosses)
-            ]
+            'transactions' => $realizedGainsLosses,
+            'summary' => $summary
         ];
     }
 
     /**
-     * Calculate unrealized gains and losses (current holdings)
+     * Calculate unrealized gains and losses from watchlist data
      */
     private function calculateUnrealizedGainsLosses(int $userId): array
     {
-        $portfolio = $this->watchlistService->getPortfolioSummary($userId);
+        $holdingsSummary = $this->getHoldingsSummary($userId);
+        $holdings = $holdingsSummary['by_asset'];
 
         $unrealizedGains = [];
         $unrealizedLosses = [];
 
-        foreach ($portfolio['portfolio'] as $holding) {
+        foreach ($holdings as $holding) {
             if ($holding['gain_loss'] > 0) {
                 $unrealizedGains[] = $holding;
             } elseif ($holding['gain_loss'] < 0) {
@@ -323,5 +499,55 @@ class TaxReportingService
         fclose($file);
 
         return $filepath;
+    }
+
+    /**
+     * Calculate gains/losses for a specific sale using FIFO method
+     */
+    private function calculateGainsForSale(int $userId, Transaction $sellTransaction): array
+    {
+        $gainsLosses = [];
+        $remainingQuantity = $sellTransaction->quantity;
+
+        // Get buy transactions for this symbol in FIFO order (oldest first)
+        $buyTransactions = Transaction::forUser($userId)
+            ->forSymbol($sellTransaction->symbol)
+            ->where('type', 'buy')
+            ->where('transaction_date', '<', $sellTransaction->transaction_date)
+            ->orderBy('transaction_date', 'asc')
+            ->get();
+
+        foreach ($buyTransactions as $buy) {
+            if ($remainingQuantity <= 0) {
+                break;
+            }
+
+            $quantityToMatch = min($remainingQuantity, $buy->quantity);
+            $costBasis = ($buy->price_per_unit * $quantityToMatch) + ($buy->fees * ($quantityToMatch / $buy->quantity));
+            $proceeds = ($sellTransaction->price_per_unit * $quantityToMatch) - ($sellTransaction->fees * ($quantityToMatch / $sellTransaction->quantity));
+            $gainLoss = $proceeds - $costBasis;
+
+            $holdingPeriod = $buy->transaction_date->diffInDays($sellTransaction->transaction_date) > 365 ? 'long_term' : 'short_term';
+
+            $gainsLosses[] = [
+                'symbol' => $sellTransaction->symbol,
+                'type' => 'sell',
+                'quantity' => $quantityToMatch,
+                'sale_price' => $sellTransaction->price_per_unit,
+                'purchase_price' => $buy->price_per_unit,
+                'sale_date' => $sellTransaction->transaction_date->toDateString(),
+                'purchase_date' => $buy->transaction_date->toDateString(),
+                'holding_period' => $holdingPeriod,
+                'cost_basis' => $costBasis,
+                'proceeds' => $proceeds,
+                'gain_loss' => $gainLoss,
+                'sell_transaction_id' => $sellTransaction->id,
+                'buy_transaction_id' => $buy->id
+            ];
+
+            $remainingQuantity -= $quantityToMatch;
+        }
+
+        return $gainsLosses;
     }
 }

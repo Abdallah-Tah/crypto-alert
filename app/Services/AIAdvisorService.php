@@ -262,32 +262,231 @@ Keep the response comprehensive but concise (under 400 words).";
     }
 
     /**
-     * Get market sentiment analysis
+     * Get market sentiment analysis with real Fear & Greed Index
      *
      * @param array $marketData
      * @return array|null
      */
-    public function getMarketSentiment(array $marketData): ?array
+    public function getMarketSentiment(array $marketData = []): ?array
     {
         try {
-            // Mock implementation - replace with real sentiment analysis
-            $sentiment = [
-                'overall_sentiment' => 'bullish',
-                'confidence' => 0.75,
-                'key_factors' => [
-                    'Strong institutional adoption',
-                    'Positive regulatory developments',
-                    'Technical indicators showing upward trend'
-                ],
+            // Get real Fear & Greed Index
+            $fearGreedData = $this->getRealFearGreedIndex();
+            $marketSnapshot = $this->getCurrentMarketSnapshot();
+            
+            $fearGreedIndex = $fearGreedData['value'] ?? $this->calculateFearGreedIndex($marketSnapshot);
+            $sentimentLabel = $this->getSentimentLabel($fearGreedIndex);
+            $keyFactors = $this->generateKeyFactors($fearGreedIndex, $marketSnapshot);
+            $recommendation = $this->generateSentimentRecommendation($fearGreedIndex);
+
+            return [
+                'fear_greed_index' => $fearGreedIndex,
+                'overall_sentiment' => $sentimentLabel,
+                'confidence' => $fearGreedData['confidence'] ?? 0.75,
+                'recommendation' => $recommendation,
+                'key_factors' => $keyFactors,
+                'market_data' => $marketSnapshot,
+                'data_source' => $fearGreedData['source'] ?? 'calculated',
                 'generated_at' => now()
             ];
-
-            return $sentiment;
 
         } catch (Exception $e) {
             Log::error("Failed to analyze market sentiment: " . $e->getMessage());
             return null;
         }
+    }
+
+    /**
+     * Get real Fear & Greed Index from API
+     */
+    private function getRealFearGreedIndex(): array
+    {
+        try {
+            // Use Alternative.me Fear & Greed Index API
+            $url = 'https://api.alternative.me/fng/';
+            
+            $context = stream_context_create([
+                'http' => [
+                    'timeout' => 10,
+                    'user_agent' => 'CryptoAdvisor/1.0'
+                ]
+            ]);
+            
+            $response = file_get_contents($url, false, $context);
+            
+            if ($response !== false) {
+                $data = json_decode($response, true);
+                
+                if (isset($data['data'][0])) {
+                    $fngData = $data['data'][0];
+                    return [
+                        'value' => (int) $fngData['value'],
+                        'value_classification' => $fngData['value_classification'],
+                        'confidence' => 0.90, // High confidence for official API
+                        'source' => 'alternative.me',
+                        'timestamp' => $fngData['timestamp'] ?? time()
+                    ];
+                }
+            }
+            
+            // Fallback to calculated value
+            throw new Exception('API response invalid');
+            
+        } catch (Exception $e) {
+            Log::warning("Failed to get Fear & Greed Index from API: " . $e->getMessage());
+            
+            // Return calculated value as fallback
+            return [
+                'value' => $this->calculateFearGreedIndex($this->getCurrentMarketSnapshot()),
+                'confidence' => 0.60, // Lower confidence for calculated value
+                'source' => 'calculated'
+            ];
+        }
+    }
+
+    /**
+     * Get enhanced market analysis with multiple data sources
+     */
+    public function getEnhancedMarketAnalysis(string $symbol = 'BTC'): array
+    {
+        try {
+            $sentiment = $this->getMarketSentiment();
+            $priceData = $this->getPriceMovementAnalysis($symbol);
+            $newsAnalysis = $this->getNewsAnalysis($symbol);
+            
+            return [
+                'symbol' => $symbol,
+                'sentiment_analysis' => $sentiment,
+                'price_analysis' => $priceData,
+                'news_analysis' => $newsAnalysis,
+                'composite_score' => $this->calculateCompositeScore($sentiment, $priceData, $newsAnalysis),
+                'generated_at' => now()
+            ];
+        } catch (Exception $e) {
+            Log::error("Failed to get enhanced market analysis: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Get price movement analysis
+     */
+    private function getPriceMovementAnalysis(string $symbol): array
+    {
+        try {
+            $currentPrice = $this->ccxtService->getPrice($symbol);
+            
+            if ($currentPrice === null) {
+                return ['error' => 'Unable to get price data'];
+            }
+
+            // Mock technical analysis - in production, implement real technical indicators
+            return [
+                'current_price' => $currentPrice,
+                'trend' => 'bullish', // Would calculate from actual data
+                'support_level' => $currentPrice * 0.95,
+                'resistance_level' => $currentPrice * 1.05,
+                'volatility' => 'moderate',
+                'volume_trend' => 'increasing'
+            ];
+        } catch (Exception $e) {
+            Log::error("Failed to analyze price movement: " . $e->getMessage());
+            return ['error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Get news analysis using AI
+     */
+    private function getNewsAnalysis(string $symbol): array
+    {
+        try {
+            // Mock news headlines - in production, integrate with news APIs
+            $mockNews = [
+                "Bitcoin ETF approval boosts institutional confidence",
+                "Major corporation announces cryptocurrency adoption",
+                "Regulatory clarity improves market outlook"
+            ];
+
+            $newsText = implode('. ', $mockNews);
+            
+            $prompt = "Analyze the sentiment of these recent cryptocurrency news headlines and provide a brief sentiment score (0-100) and analysis:
+
+{$newsText}
+
+Focus on:
+1. Overall sentiment (positive/negative/neutral)
+2. Impact on {$symbol} specifically
+3. Market implications
+4. Confidence level in analysis
+
+Provide a brief analysis (under 200 words).";
+
+            $response = Prism::text()
+                ->using(Provider::OpenAI, 'gpt-4o')
+                ->withPrompt($prompt)
+                ->withProviderOptions([
+                    'temperature' => 0.3,
+                    'max_tokens' => 300,
+                ])
+                ->asText();
+
+            return [
+                'news_sentiment' => $response->text ?? 'Analysis unavailable',
+                'headlines_analyzed' => count($mockNews),
+                'source' => 'ai_analysis'
+            ];
+        } catch (Exception $e) {
+            Log::error("Failed to analyze news sentiment: " . $e->getMessage());
+            return [
+                'news_sentiment' => 'Unable to analyze news sentiment',
+                'headlines_analyzed' => 0,
+                'source' => 'error'
+            ];
+        }
+    }
+
+    /**
+     * Calculate composite analysis score
+     */
+    private function calculateCompositeScore(?array $sentiment, array $priceData, array $newsAnalysis): array
+    {
+        $scores = [];
+        
+        // Fear & Greed Index (0-100)
+        if (isset($sentiment['fear_greed_index'])) {
+            $scores['sentiment'] = $sentiment['fear_greed_index'];
+        }
+        
+        // Price trend (convert to 0-100 scale)
+        if (isset($priceData['trend'])) {
+            $scores['technical'] = $priceData['trend'] === 'bullish' ? 70 : ($priceData['trend'] === 'bearish' ? 30 : 50);
+        }
+        
+        // News sentiment (simplified)
+        if (isset($newsAnalysis['news_sentiment'])) {
+            $scores['news'] = 60; // Mock score - would parse from AI analysis
+        }
+        
+        $averageScore = !empty($scores) ? array_sum($scores) / count($scores) : 50;
+        
+        return [
+            'composite_score' => round($averageScore, 1),
+            'individual_scores' => $scores,
+            'interpretation' => $this->interpretCompositeScore($averageScore)
+        ];
+    }
+
+    /**
+     * Interpret composite score
+     */
+    private function interpretCompositeScore(float $score): string
+    {
+        if ($score >= 80) return 'Very Bullish';
+        if ($score >= 65) return 'Bullish';
+        if ($score >= 45) return 'Neutral';
+        if ($score >= 30) return 'Bearish';
+        return 'Very Bearish';
     }
 
     /**

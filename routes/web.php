@@ -8,6 +8,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PortfolioManagementController;
 use App\Http\Controllers\PublicController;
 use App\Http\Controllers\TaxReportController;
+use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\WatchlistController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -77,6 +78,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/generate', [TaxReportController::class, 'generate'])->name('generate');
         Route::post('/export-csv', [TaxReportController::class, 'exportCSV'])->name('export-csv');
         Route::get('/optimization-suggestions', [TaxReportController::class, 'getOptimizationSuggestions'])->name('optimization-suggestions');
+    });
+
+    // Transaction Management routes (for accurate tax reporting)
+    Route::prefix('transactions')->name('transactions.')->group(function () {
+        Route::get('/', [TransactionController::class, 'index'])->name('index');
+        Route::post('/', [TransactionController::class, 'store'])->name('store');
+        Route::put('/{transaction}', [TransactionController::class, 'update'])->name('update');
+        Route::delete('/{transaction}', [TransactionController::class, 'destroy'])->name('destroy');
+        Route::get('/price/{symbol}', [TransactionController::class, 'getCurrentPrice'])->name('price');
+        Route::post('/bulk-import', [TransactionController::class, 'bulkImport'])->name('bulk-import');
+        Route::get('/template', [TransactionController::class, 'downloadTemplate'])->name('template');
     });
 
     // Portfolio Management routes (Enterprise Features)

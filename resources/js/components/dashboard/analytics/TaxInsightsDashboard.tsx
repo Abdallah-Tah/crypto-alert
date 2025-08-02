@@ -2,8 +2,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { Link } from '@inertiajs/react';
+import { TaxOptimizationModal, TaxReportModal } from '@/components/modals';
 import { Calculator, FileText, TrendingDown, TrendingUp } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 interface TaxInsight {
     type: 'gain' | 'loss' | 'opportunity';
@@ -19,8 +20,50 @@ interface TaxInsightsDashboardProps {
 }
 
 export function TaxInsightsDashboard({ className = '' }: TaxInsightsDashboardProps) {
-    // Mock data - in real implementation, this would come from your tax service
-    const taxInsights: TaxInsight[] = [
+    const [isTaxOptimizationOpen, setIsTaxOptimizationOpen] = useState(false);
+    const [isTaxReportOpen, setIsTaxReportOpen] = useState(false);
+    const [realPortfolioData, setRealPortfolioData] = useState(null);
+    const [isLoadingData, setIsLoadingData] = useState(false);
+
+    // Fetch real tax optimization suggestions
+    const fetchTaxOptimizationData = async () => {
+        setIsLoadingData(true);
+        try {
+            const response = await fetch('/tax-report/optimization-suggestions', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                setRealPortfolioData(data);
+            }
+        } catch (error) {
+            console.error('Error fetching tax optimization data:', error);
+        } finally {
+            setIsLoadingData(false);
+        }
+    };
+
+    // Fetch data when component mounts
+    useEffect(() => {
+        fetchTaxOptimizationData();
+    }, []);
+
+    // Use real data if available, otherwise fall back to mock data
+    const taxInsights: TaxInsight[] = realPortfolioData?.suggestions?.map((suggestion, index) => ({
+        type: suggestion.type === 'tax_loss_harvesting' ? 'opportunity' : 
+              suggestion.type === 'long_term_holding' ? 'gain' : 'loss',
+        title: suggestion.title,
+        description: suggestion.description,
+        amount: suggestion.potential_savings || suggestion.amount || 0,
+        symbol: suggestion.asset || suggestion.symbol,
+        action: suggestion.priority === 'high' ? 'Act now' : 
+                suggestion.priority === 'medium' ? 'Consider' : 'Monitor'
+    })) || [
         {
             type: 'opportunity',
             title: 'Tax-Loss Harvesting',
@@ -59,6 +102,23 @@ export function TaxInsightsDashboard({ className = '' }: TaxInsightsDashboardPro
             maximumFractionDigits: 2,
         }).format(amount);
     };
+
+    // Show loading state
+    if (isLoadingData) {
+        return (
+            <Card className={cn('', className)}>
+                <CardHeader className="pb-3">
+                    <CardTitle className="text-lg font-semibold text-foreground">Tax Insights</CardTitle>
+                    <CardDescription className="text-sm text-muted-foreground">Loading tax optimization data...</CardDescription>
+                </CardHeader>
+                <CardContent className="px-3 sm:px-6">
+                    <div className="flex items-center justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }
 
     return (
         <Card className={cn('', className)}>
@@ -154,19 +214,155 @@ export function TaxInsightsDashboard({ className = '' }: TaxInsightsDashboardPro
                 </div>
 
                 <div className="mt-4 flex gap-2">
-                    <Link href="/tax-report" className="flex-1">
-                        <Button variant="outline" size="sm" className="flex w-full items-center justify-center gap-2">
-                            <FileText className="h-3 w-3" />
-                            <span className="text-xs">Full Tax Report</span>
-                        </Button>
-                    </Link>
-                    <Link href="/portfolio/optimize-tax" className="flex-1">
-                        <Button size="sm" className="flex w-full items-center justify-center gap-2">
-                            <Calculator className="h-3 w-3" />
-                            <span className="text-xs">Optimize Taxes</span>
-                        </Button>
-                    </Link>
+                    <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex flex-1 items-center justify-center gap-2"
+                        onClick={() => setIsTaxReportOpen(true)}
+                    >
+                        <FileText className="h-3 w-3" />
+                        <span className="text-xs">Full Tax Report</span>
+                    </Button>
+                    <Button 
+                        size="sm" 
+                        className="flex flex-1 items-center justify-center gap-2"
+                        onClick={() => setIsTaxOptimizationOpen(true)}
+                    >
+                        <Calculator className="h-3 w-3" />
+                        <span className="text-xs">Optimize Taxes</span>
+                    </Button>
                 </div>
+
+                {/* Tax Optimization Modal */}
+                <TaxOptimizationModal
+                    isOpen={isTaxOptimizationOpen}
+                    onClose={() => setIsTaxOptimizationOpen(false)}
+                    data={{
+                        currentTaxLiability: 12500,
+                        potentialSavings: totalTaxSavings,
+                        opportunities: [
+                            {
+                                id: '1',
+                                type: 'harvest',
+                                asset: 'DOGE',
+                                currentValue: 850,
+                                unrealizedLoss: -485,
+                                potentialSaving: totalTaxSavings * 0.6,
+                                confidence: 'high',
+                                description: 'Harvest losses from DOGE position to offset gains',
+                                riskLevel: 'low'
+                            }
+                        ],
+                        recommendations: [
+                            'Consider harvesting losses before year-end',
+                            'Hold profitable positions for long-term rates',
+                            'Review portfolio allocation for tax efficiency'
+                        ],
+                        yearToDate: {
+                            gains: 15600,
+                            losses: -3200,
+                            harvestable: -485
+                        }
+                    }}
+                    onExecuteOptimization={async (opportunityId) => {
+                        try {
+                            const response = await fetch('/portfolio/optimize-tax', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                                },
+                                body: JSON.stringify({ opportunity_id: opportunityId })
+                            });
+                            
+                            if (!response.ok) {
+                                throw new Error('Failed to execute tax optimization');
+                            }
+                            
+                            const data = await response.json();
+                            console.log('Tax optimization executed successfully:', data);
+                            alert('Tax optimization executed successfully!');
+                        } catch (error) {
+                            console.error('Error executing tax optimization:', error);
+                            alert('Failed to execute tax optimization. Please try again.');
+                        }
+                    }}
+                />
+
+                {/* Tax Report Modal */}
+                <TaxReportModal
+                    isOpen={isTaxReportOpen}
+                    onClose={() => setIsTaxReportOpen(false)}
+                    data={{
+                        availableYears: [2024, 2023, 2022, 2021],
+                        selectedYear: 2024,
+                        reportMetrics: {
+                            totalGains: 15600,
+                            totalLosses: -3200,
+                            netPosition: 12400,
+                            taxableEvents: 45,
+                            avgHoldPeriod: 180
+                        },
+                        exportFormats: [
+                            { format: 'csv', label: 'CSV Export', description: 'Download as CSV file' },
+                            { format: 'pdf', label: 'PDF Report', description: 'Download as PDF report' },
+                            { format: 'xlsx', label: 'Excel Export', description: 'Download as Excel file' }
+                        ]
+                    }}
+                    onGenerateReport={async (year, format) => {
+                        try {
+                            const response = await fetch('/tax-report/generate', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                                },
+                                body: JSON.stringify({ tax_year: year })
+                            });
+                            
+                            if (!response.ok) {
+                                throw new Error('Failed to generate tax report');
+                            }
+                            
+                            const data = await response.json();
+                            console.log('Tax report generated successfully:', data);
+                        } catch (error) {
+                            console.error('Error generating tax report:', error);
+                            alert('Failed to generate tax report. Please try again.');
+                        }
+                    }}
+                    onExportReport={async (format) => {
+                        try {
+                            const response = await fetch('/tax-report/export-csv', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                                },
+                                body: JSON.stringify({ tax_year: 2024 })
+                            });
+                            
+                            if (!response.ok) {
+                                throw new Error('Failed to export tax report');
+                            }
+                            
+                            // Handle file download
+                            const blob = await response.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.style.display = 'none';
+                            a.href = url;
+                            a.download = `tax_report_2024.${format}`;
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                            console.log(`Tax report exported as ${format}`);
+                        } catch (error) {
+                            console.error('Error exporting tax report:', error);
+                            alert('Failed to export tax report. Please try again.');
+                        }
+                    }}
+                />
             </CardContent>
         </Card>
     );

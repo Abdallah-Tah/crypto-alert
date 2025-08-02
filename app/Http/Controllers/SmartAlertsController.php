@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\AlertService;
+use App\Models\SmartAlert;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Inertia\Inertia;
@@ -47,16 +48,18 @@ class SmartAlertsController extends Controller
             foreach ($alertTypes as $alertType) {
                 $config = $configurations[$alertType] ?? [];
 
-                // Create basic alert configuration
-                $alertData = [
+                // Create actual smart alert in database
+                $alert = SmartAlert::create([
                     'user_id' => $user->id,
                     'alert_type' => $alertType,
+                    'symbol' => $config['symbol'] ?? null,
+                    'target_value' => $config['target_value'] ?? null,
+                    'direction' => $config['direction'] ?? null,
                     'configuration' => $config,
                     'is_active' => true,
-                    'created_at' => now()
-                ];
+                ]);
 
-                $alerts[] = $alertData;
+                $alerts[] = $alert;
             }
 
             return response()->json([
@@ -84,41 +87,40 @@ class SmartAlertsController extends Controller
         $user = $request->user();
 
         try {
-            // Mock active alerts - in real implementation, query from database
-            $activeAlerts = [
-                [
-                    'id' => 1,
-                    'type' => 'price_target',
-                    'symbol' => 'BTC',
-                    'target_price' => 30000,
-                    'current_price' => 29500,
-                    'status' => 'active',
-                    'created_at' => now()->subDays(2)
-                ],
-                [
-                    'id' => 2,
-                    'type' => 'portfolio_rebalance',
-                    'threshold' => 5,
-                    'current_deviation' => 3.2,
-                    'status' => 'monitoring',
-                    'created_at' => now()->subWeek()
-                ],
-                [
-                    'id' => 3,
-                    'type' => 'tax_optimization',
-                    'minimum_loss' => 100,
-                    'opportunities_found' => 2,
-                    'status' => 'active',
-                    'created_at' => now()->subDays(5)
-                ]
-            ];
+            // Get actual alerts from database
+            $activeAlerts = SmartAlert::forUser($user->id)
+                ->active()
+                ->with(['user'])
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($alert) {
+                    return [
+                        'id' => $alert->id,
+                        'type' => $alert->alert_type,
+                        'symbol' => $alert->symbol,
+                        'target_value' => $alert->target_value,
+                        'direction' => $alert->direction,
+                        'configuration' => $alert->configuration,
+                        'is_active' => $alert->is_active,
+                        'last_triggered_at' => $alert->last_triggered_at,
+                        'trigger_count' => $alert->trigger_count,
+                        'created_at' => $alert->created_at,
+                        'formatted_target' => $alert->getFormattedTargetValue(),
+                        'type_label' => $alert->getAlertTypeLabel(),
+                        'direction_label' => $alert->getDirectionLabel()
+                    ];
+                });
+
+            $triggeredToday = SmartAlert::forUser($user->id)
+                ->whereDate('last_triggered_at', today())
+                ->count();
 
             return response()->json([
                 'success' => true,
                 'data' => [
                     'active_alerts' => $activeAlerts,
-                    'total_count' => count($activeAlerts),
-                    'triggered_today' => 1,
+                    'total_count' => $activeAlerts->count(),
+                    'triggered_today' => $triggeredToday,
                     'monitoring_status' => 'active'
                 ]
             ]);
@@ -135,18 +137,30 @@ class SmartAlertsController extends Controller
      */
     public function updateAlert(Request $request, int $alertId): JsonResponse
     {
-        $request->validate([
+        $validated = $request->validate([
             'configuration' => 'required|array',
-            'is_active' => 'boolean'
+            'is_active' => 'boolean',
+            'target_value' => 'nullable|numeric',
+            'direction' => 'nullable|string|in:above,below'
         ]);
 
         try {
-            // Mock update - in real implementation, update database
+            $user = $request->user();
+            $alert = SmartAlert::forUser($user->id)->findOrFail($alertId);
+            
+            $alert->update([
+                'configuration' => $validated['configuration'],
+                'is_active' => $validated['is_active'] ?? $alert->is_active,
+                'target_value' => $validated['target_value'] ?? $alert->target_value,
+                'direction' => $validated['direction'] ?? $alert->direction,
+            ]);
+
             return response()->json([
                 'success' => true,
                 'data' => [
                     'alert_id' => $alertId,
                     'updated' => true,
+                    'alert' => $alert->fresh(),
                     'message' => 'Alert configuration updated successfully'
                 ]
             ]);
@@ -164,7 +178,10 @@ class SmartAlertsController extends Controller
     public function deleteAlert(Request $request, int $alertId): JsonResponse
     {
         try {
-            // Mock deletion - in real implementation, delete from database
+            $user = $request->user();
+            $alert = SmartAlert::forUser($user->id)->findOrFail($alertId);
+            $alert->delete();
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -327,26 +344,22 @@ class SmartAlertsController extends Controller
         ]);
 
         try {
-            // Create the alert
-            $alertData = [
+            // Create the alert in database
+            $alert = SmartAlert::create([
                 'user_id' => $user->id,
-                'name' => $validated['name'],
                 'alert_type' => $validated['type'],
                 'configuration' => [
+                    'name' => $validated['name'],
                     'condition' => $validated['condition'],
                     'description' => $validated['description']
                 ],
                 'is_active' => true,
-                'created_at' => now()
-            ];
-
-            // Here you would typically save to database
-            // For now, just return success response
+            ]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Smart alert created successfully',
-                'data' => $alertData
+                'data' => $alert
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -366,15 +379,20 @@ class SmartAlertsController extends Controller
         ]);
 
         try {
-            // Here you would typically update the alert in database
-            // For now, just return success response
+            $user = $request->user();
+            $alert = SmartAlert::forUser($user->id)->findOrFail($alertId);
+            
+            $alert->update([
+                'is_active' => $validated['isActive']
+            ]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Alert status updated successfully',
                 'data' => [
                     'alert_id' => $alertId,
-                    'is_active' => $validated['isActive']
+                    'is_active' => $validated['isActive'],
+                    'alert' => $alert->fresh()
                 ]
             ]);
         } catch (\Exception $e) {

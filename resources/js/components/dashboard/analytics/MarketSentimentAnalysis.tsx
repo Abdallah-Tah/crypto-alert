@@ -2,8 +2,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { Link } from '@inertiajs/react';
+import { MarketAnalysisModal, SmartAlertsModal } from '@/components/modals';
 import { Activity, AlertTriangle, Brain, CheckCircle, TrendingDown, TrendingUp } from 'lucide-react';
+import { useState } from 'react';
 
 interface SentimentIndicator {
     metric: string;
@@ -18,6 +19,9 @@ interface MarketSentimentAnalysisProps {
 }
 
 export function MarketSentimentAnalysis({ className = '' }: MarketSentimentAnalysisProps) {
+    const [isMarketAnalysisOpen, setIsMarketAnalysisOpen] = useState(false);
+    const [isSmartAlertsOpen, setIsSmartAlertsOpen] = useState(false);
+
     // Mock data - in real implementation, this would come from sentiment APIs
     const sentimentData: SentimentIndicator[] = [
         {
@@ -195,19 +199,98 @@ export function MarketSentimentAnalysis({ className = '' }: MarketSentimentAnaly
                 </div>
 
                 <div className="mt-4 flex gap-2">
-                    <Link href="/advisor" className="flex-1">
-                        <Button variant="outline" size="sm" className="flex w-full items-center justify-center gap-2">
-                            <Activity className="h-3 w-3" />
-                            <span className="text-xs">Detailed Analysis</span>
-                        </Button>
-                    </Link>
-                    <Link href="/notifications" className="flex-1">
-                        <Button size="sm" className="flex w-full items-center justify-center gap-2">
-                            <AlertTriangle className="h-3 w-3" />
-                            <span className="text-xs">Set Alerts</span>
-                        </Button>
-                    </Link>
+                    <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex flex-1 items-center justify-center gap-2"
+                        onClick={() => setIsMarketAnalysisOpen(true)}
+                    >
+                        <Activity className="h-3 w-3" />
+                        <span className="text-xs">Detailed Analysis</span>
+                    </Button>
+                    <Button 
+                        size="sm" 
+                        className="flex flex-1 items-center justify-center gap-2"
+                        onClick={() => setIsSmartAlertsOpen(true)}
+                    >
+                        <AlertTriangle className="h-3 w-3" />
+                        <span className="text-xs">Set Alerts</span>
+                    </Button>
                 </div>
+
+                {/* Market Analysis Modal */}
+                <MarketAnalysisModal
+                    isOpen={isMarketAnalysisOpen}
+                    onClose={() => setIsMarketAnalysisOpen(false)}
+                    data={{
+                        sentiment: {
+                            score: overallSentiment,
+                            label: overallStatus === 'bullish' ? 'Greed' : overallStatus === 'bearish' ? 'Fear' : 'Neutral',
+                            change24h: 2.5,
+                            indicators: {
+                                fearGreedIndex: 68,
+                                socialSentiment: 42,
+                                technicalIndicators: 25,
+                                momentum: 85
+                            }
+                        },
+                        technicalAnalysis: {
+                            trend: overallStatus,
+                            strength: 7,
+                            resistance: [50000, 52000],
+                            support: [45000, 43000],
+                            indicators: [
+                                { name: 'RSI', value: 65, signal: 'hold', strength: 7 },
+                                { name: 'MACD', value: -0.5, signal: 'sell', strength: 6 },
+                                { name: 'Moving Average', value: 45000, signal: 'buy', strength: 8 }
+                            ]
+                        },
+                        aiInsights: {
+                            prediction: 'Bullish momentum expected to continue in short term',
+                            confidence: 75,
+                            timeframe: '1-2 weeks',
+                            keyFactors: ['Strong institutional buying', 'Technical breakout above resistance'],
+                            risks: ['Market volatility', 'Regulatory concerns'],
+                            opportunities: ['Potential upside to $55k', 'Strong support levels']
+                        },
+                        marketMetrics: {
+                            volatility: 0.045,
+                            volume24h: 28500000000,
+                            marketCap: 950000000000,
+                            dominance: { BTC: 45.2, ETH: 18.5, Others: 36.3 }
+                        }
+                    }}
+                    onRefreshData={async () => {
+                        console.log('Refreshing market analysis data...');
+                    }}
+                />
+
+                {/* Smart Alerts Modal */}
+                <SmartAlertsModal
+                    isOpen={isSmartAlertsOpen}
+                    onClose={() => setIsSmartAlertsOpen(false)}
+                    activeAlerts={[
+                        {
+                            id: '1',
+                            name: 'BTC Price Alert',
+                            type: 'market',
+                            status: 'active',
+                            condition: 'BTC > $50,000',
+                            triggered: false,
+                            createdAt: new Date(),
+                            updatedAt: new Date()
+                        }
+                    ]}
+                    onCreateAlert={async (alertData) => {
+                        console.log('Creating alert:', alertData);
+                    }}
+                    onUpdateAlert={async (alertId, updates) => {
+                        console.log('Updating alert:', alertId, updates);
+                    }}
+                    onDeleteAlert={async (alertId) => {
+                        console.log('Deleting alert:', alertId);
+                    }}
+                />
             </CardContent>
         </Card>
     );

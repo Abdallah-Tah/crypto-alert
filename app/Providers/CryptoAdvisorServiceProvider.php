@@ -9,6 +9,7 @@ use App\Services\WatchlistService;
 use App\Services\UserPreferencesService;
 use App\Services\NotificationService;
 use App\Services\TaxReportingService;
+use App\Services\SmartAlertService;
 use Illuminate\Support\ServiceProvider;
 
 class CryptoAdvisorServiceProvider extends ServiceProvider
@@ -61,6 +62,14 @@ class CryptoAdvisorServiceProvider extends ServiceProvider
         $this->app->singleton(TaxReportingService::class, function ($app) {
             return new TaxReportingService(
                 $app->make(WatchlistService::class),
+                $app->make(CCXTService::class)
+            );
+        });
+
+        // Register SmartAlertService with dependencies
+        $this->app->singleton(SmartAlertService::class, function ($app) {
+            return new SmartAlertService(
+                $app->make(NotificationService::class),
                 $app->make(CCXTService::class)
             );
         });

@@ -5,13 +5,29 @@ import { cn } from '@/lib/utils';
 import { Link } from '@inertiajs/react';
 import { AlertTriangle, ArrowRightLeft, Calculator, FileText, Target, TrendingUp, Zap } from 'lucide-react';
 import type { ComponentType, SVGProps } from 'react';
+import * as React from 'react';
+import { 
+    TaxOptimizationModal, 
+    TaxReportModal, 
+    MarketAnalysisModal, 
+    SmartAlertsModal 
+} from '@/components/modals';
+import type {
+    TaxOptimizationData,
+    TaxReportData,
+    MarketAnalysisData,
+    ActiveAlert,
+    SmartAlertConfig
+} from '@/types/modals';
 
 interface QuickAction {
     id: string;
     title: string;
     description: string;
     icon: ComponentType<SVGProps<SVGSVGElement>>;
-    href: string;
+    href?: string;
+    action?: 'modal' | 'link';
+    modalType?: 'taxOptimization' | 'taxReport' | 'marketAnalysis' | 'smartAlerts';
     priority: 'high' | 'medium' | 'low';
     category: 'tax' | 'portfolio' | 'alert' | 'analysis';
     urgent?: boolean;
@@ -21,14 +37,38 @@ interface QuickActionsCenterProps {
     className?: string;
 }
 
+type ModalState = {
+    taxOptimization: boolean;
+    taxReport: boolean;
+    marketAnalysis: boolean;
+    smartAlerts: boolean;
+};
+
 export function QuickActionsCenter({ className = '' }: QuickActionsCenterProps) {
+    // Modal state management
+    const [modals, setModals] = React.useState<ModalState>({
+        taxOptimization: false,
+        taxReport: false,
+        marketAnalysis: false,
+        smartAlerts: false,
+    });
+
+    const openModal = (modalType: keyof ModalState) => {
+        setModals(prev => ({ ...prev, [modalType]: true }));
+    };
+
+    const closeModal = (modalType: keyof ModalState) => {
+        setModals(prev => ({ ...prev, [modalType]: false }));
+    };
+
     const actions: QuickAction[] = [
         {
             id: 'tax-loss-harvest',
-            title: 'Tax-Loss Harvesting',
-            description: 'Offset gains with DOGE losses',
+            title: 'Optimize Taxes',
+            description: 'Harvest losses and optimize tax efficiency',
             icon: Calculator,
-            href: '/portfolio/tax-loss-harvesting',
+            action: 'modal',
+            modalType: 'taxOptimization',
             priority: 'high',
             category: 'tax',
             urgent: true,
@@ -39,34 +79,38 @@ export function QuickActionsCenter({ className = '' }: QuickActionsCenterProps) 
             description: 'ETH allocation is 8% above target',
             icon: ArrowRightLeft,
             href: '/portfolio/rebalancing',
+            action: 'link',
             priority: 'medium',
             category: 'portfolio',
         },
         {
-            id: 'set-stop-loss',
-            title: 'Set Stop Losses',
-            description: '2 positions lack risk protection',
+            id: 'set-alerts',
+            title: 'Set Smart Alerts',
+            description: 'Configure intelligent portfolio alerts',
             icon: Target,
-            href: '/watchlist',
+            action: 'modal',
+            modalType: 'smartAlerts',
             priority: 'high',
             category: 'alert',
             urgent: true,
         },
         {
             id: 'generate-tax-report',
-            title: 'Generate Tax Report',
-            description: 'Q3 report ready for download',
+            title: 'Full Tax Report',
+            description: 'Generate comprehensive tax report',
             icon: FileText,
-            href: '/tax-report',
+            action: 'modal',
+            modalType: 'taxReport',
             priority: 'medium',
             category: 'tax',
         },
         {
             id: 'analyze-performance',
-            title: 'Performance Analysis',
-            description: 'Review last 30 days metrics',
+            title: 'Detailed Analysis',
+            description: 'Advanced market sentiment & analysis',
             icon: TrendingUp,
-            href: '/portfolio/full-analysis',
+            action: 'modal',
+            modalType: 'marketAnalysis',
             priority: 'low',
             category: 'analysis',
         },
@@ -76,6 +120,7 @@ export function QuickActionsCenter({ className = '' }: QuickActionsCenterProps) 
             description: 'Fear & Greed Index threshold',
             icon: AlertTriangle,
             href: '/notifications',
+            action: 'link',
             priority: 'medium',
             category: 'alert',
         },
@@ -123,6 +168,185 @@ export function QuickActionsCenter({ className = '' }: QuickActionsCenterProps) 
         }
     };
 
+    const handleActionClick = (action: QuickAction) => {
+        if (action.action === 'modal' && action.modalType) {
+            openModal(action.modalType);
+        }
+        // For links, the Link component will handle navigation
+    };
+
+    // Mock data for modals - in a real app, this would come from props or API
+    const mockTaxOptimizationData: TaxOptimizationData = {
+        currentTaxLiability: 15750,
+        potentialSavings: 4200,
+        yearToDate: {
+            gains: 28500,
+            losses: -12750,
+            harvestable: 8300
+        },
+        opportunities: [
+            {
+                id: '1',
+                type: 'harvest',
+                asset: 'DOGE',
+                currentValue: 2500,
+                unrealizedLoss: -750,
+                potentialSaving: 180,
+                confidence: 'high',
+                description: 'Harvest DOGE losses to offset ETH gains',
+                riskLevel: 'low'
+            },
+            {
+                id: '2',
+                type: 'defer',
+                asset: 'BTC',
+                currentValue: 15000,
+                unrealizedLoss: -2200,
+                potentialSaving: 660,
+                confidence: 'medium',
+                description: 'Consider deferring BTC sale to next tax year',
+                riskLevel: 'medium'
+            }
+        ],
+        recommendations: [
+            'Consider harvesting DOGE losses before year-end to offset current gains',
+            'Your ETH position has significant unrealized gains - consider partial profit taking',
+            'DCA strategy for BTC could help with tax efficiency in volatile markets'
+        ]
+    };
+
+    const mockTaxReportData: TaxReportData = {
+        availableYears: [2024, 2023, 2022, 2021],
+        selectedYear: 2024,
+        reportMetrics: {
+            totalGains: 28500,
+            totalLosses: -12750,
+            netPosition: 15750,
+            taxableEvents: 247,
+            avgHoldPeriod: 156
+        },
+        exportFormats: [
+            { format: 'pdf', label: 'PDF Report', description: 'Comprehensive tax report with charts and summaries' },
+            { format: 'csv', label: 'CSV Data', description: 'Raw transaction data for tax software import' },
+            { format: 'xlsx', label: 'Excel Workbook', description: 'Detailed spreadsheet with calculations and pivot tables' }
+        ],
+        historicalComparison: [
+            { year: 2023, gains: 18200, losses: -8400, netPosition: 9800 },
+            { year: 2022, gains: 12100, losses: -15600, netPosition: -3500 },
+            { year: 2021, gains: 45700, losses: -6200, netPosition: 39500 }
+        ]
+    };
+
+    const mockMarketAnalysisData: MarketAnalysisData = {
+        sentiment: {
+            score: 68,
+            label: 'Greed',
+            change24h: 5.2,
+            indicators: {
+                fearGreedIndex: 68,
+                socialSentiment: 72,
+                technicalIndicators: 65,
+                momentum: 71
+            }
+        },
+        technicalAnalysis: {
+            trend: 'bullish',
+            strength: 75,
+            resistance: [42000, 45000, 48000],
+            support: [38000, 35000, 32000],
+            indicators: [
+                { name: 'RSI (14)', value: 64.2, signal: 'buy', strength: 72 },
+                { name: 'MACD', value: 580.45, signal: 'buy', strength: 68 },
+                { name: 'Moving Average (50)', value: 39250, signal: 'hold', strength: 55 },
+                { name: 'Bollinger Bands', value: 0.82, signal: 'buy', strength: 78 }
+            ]
+        },
+        aiInsights: {
+            prediction: 'Moderate bullish momentum expected with potential for 8-12% upside in next 30 days',
+            confidence: 78,
+            timeframe: '30 days',
+            keyFactors: [
+                'Strong institutional accumulation patterns',
+                'Decreasing exchange reserves indicate HODLing behavior',
+                'Positive regulatory developments in major markets'
+            ],
+            risks: [
+                'Macroeconomic uncertainty from inflation data',
+                'Potential regulatory scrutiny on stablecoins',
+                'High correlation with traditional markets during stress'
+            ],
+            opportunities: [
+                'DCA during minor corrections for optimal entry',
+                'Layer 2 tokens showing strong fundamentals',
+                'DeFi protocols with real yield generation'
+            ]
+        },
+        marketMetrics: {
+            volatility: 3.8,
+            volume24h: 28500000000,
+            marketCap: 2140000000000,
+            dominance: { BTC: 45.2, ETH: 18.7, Others: 36.1 }
+        }
+    };
+
+    const mockActiveAlerts: ActiveAlert[] = [
+        {
+            id: '1',
+            type: 'portfolio',
+            name: 'Portfolio Value Alert',
+            status: 'active',
+            triggeredCount: 3,
+            createdAt: new Date('2024-01-15'),
+            lastTriggered: new Date('2024-01-20')
+        },
+        {
+            id: '2',
+            type: 'tax',
+            name: 'Tax Liability Threshold',
+            status: 'triggered',
+            triggeredCount: 1,
+            createdAt: new Date('2024-01-10'),
+            lastTriggered: new Date('2024-01-22')
+        }
+    ];
+
+    // Mock handlers for modal actions
+    const handleExecuteTaxOptimization = async (opportunityId: string) => {
+        console.log('Executing tax optimization for opportunity:', opportunityId);
+        // Simulate API call
+        await new Promise(resolve => setTimeout(resolve, 2000));
+    };
+
+    const handleGenerateTaxReport = async (year: number, format: string) => {
+        console.log('Generating tax report for year:', year, 'format:', format);
+        await new Promise(resolve => setTimeout(resolve, 3000));
+    };
+
+    const handleExportTaxReport = async (format: string) => {
+        console.log('Exporting tax report in format:', format);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    };
+
+    const handleRefreshMarketData = async () => {
+        console.log('Refreshing market analysis data');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+    };
+
+    const handleCreateAlert = async (config: SmartAlertConfig) => {
+        console.log('Creating new alert:', config);
+        await new Promise(resolve => setTimeout(resolve, 1500));
+    };
+
+    const handleUpdateAlert = async (id: string, config: Partial<SmartAlertConfig>) => {
+        console.log('Updating alert:', id, config);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    };
+
+    const handleDeleteAlert = async (id: string) => {
+        console.log('Deleting alert:', id);
+        await new Promise(resolve => setTimeout(resolve, 500));
+    };
+
     return (
         <Card className={cn('', className)}>
             <CardHeader className="pb-3">
@@ -150,37 +374,44 @@ export function QuickActionsCenter({ className = '' }: QuickActionsCenterProps) 
             </CardHeader>
             <CardContent className="px-3 sm:px-6">
                 <div className="space-y-3">
-                    {actions.slice(0, 4).map((action) => (
-                        <Link key={action.id} href={action.href}>
-                            <div className="flex cursor-pointer flex-col gap-2 rounded-lg border p-3 transition-all hover:border-muted-foreground/20 hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div
-                                        className={`flex h-8 w-8 items-center justify-center rounded-full ${getPriorityBg(action.priority, action.urgent)}`}
-                                    >
-                                        <action.icon className={`h-4 w-4 ${getPriorityColor(action.priority, action.urgent)}`} />
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-xs">{getCategoryIcon(action.category)}</span>
-                                            <p className="text-sm font-medium">{action.title}</p>
-                                            {action.urgent && (
-                                                <Badge variant="destructive" className="px-1 py-0 text-xs">
-                                                    URGENT
-                                                </Badge>
-                                            )}
-                                        </div>
-                                        <p className="text-xs text-muted-foreground">{action.description}</p>
-                                    </div>
-                                </div>
+                    {actions.slice(0, 4).map((action) => {
+                        const ActionWrapper = action.action === 'link' && action.href ? Link : 'div';
+                        const wrapperProps = action.action === 'link' && action.href 
+                            ? { href: action.href } 
+                            : { onClick: () => handleActionClick(action) };
 
-                                <div className="flex items-center justify-between sm:flex-col sm:items-end sm:text-right">
-                                    <Badge variant={action.priority === 'high' ? 'default' : 'secondary'} className="text-xs">
-                                        {action.priority.toUpperCase()}
-                                    </Badge>
+                        return (
+                            <ActionWrapper key={action.id} {...wrapperProps}>
+                                <div className="flex cursor-pointer flex-col gap-2 rounded-lg border p-3 transition-all hover:border-muted-foreground/20 hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div
+                                            className={`flex h-8 w-8 items-center justify-center rounded-full ${getPriorityBg(action.priority, action.urgent)}`}
+                                        >
+                                            <action.icon className={`h-4 w-4 ${getPriorityColor(action.priority, action.urgent)}`} />
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs">{getCategoryIcon(action.category)}</span>
+                                                <p className="text-sm font-medium">{action.title}</p>
+                                                {action.urgent && (
+                                                    <Badge variant="destructive" className="px-1 py-0 text-xs">
+                                                        URGENT
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                            <p className="text-xs text-muted-foreground">{action.description}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between sm:flex-col sm:items-end sm:text-right">
+                                        <Badge variant={action.priority === 'high' ? 'default' : 'secondary'} className="text-xs">
+                                            {action.priority.toUpperCase()}
+                                        </Badge>
+                                    </div>
                                 </div>
-                            </div>
-                        </Link>
-                    ))}
+                            </ActionWrapper>
+                        );
+                    })}
                 </div>
 
                 {/* Action Summary */}
@@ -212,6 +443,38 @@ export function QuickActionsCenter({ className = '' }: QuickActionsCenterProps) 
                     </Link>
                 </div>
             </CardContent>
+
+            {/* Premium Modal Components */}
+            <TaxOptimizationModal
+                isOpen={modals.taxOptimization}
+                onClose={() => closeModal('taxOptimization')}
+                data={mockTaxOptimizationData}
+                onExecuteOptimization={handleExecuteTaxOptimization}
+            />
+
+            <TaxReportModal
+                isOpen={modals.taxReport}
+                onClose={() => closeModal('taxReport')}
+                data={mockTaxReportData}
+                onGenerateReport={handleGenerateTaxReport}
+                onExportReport={handleExportTaxReport}
+            />
+
+            <MarketAnalysisModal
+                isOpen={modals.marketAnalysis}
+                onClose={() => closeModal('marketAnalysis')}
+                data={mockMarketAnalysisData}
+                onRefreshData={handleRefreshMarketData}
+            />
+
+            <SmartAlertsModal
+                isOpen={modals.smartAlerts}
+                onClose={() => closeModal('smartAlerts')}
+                activeAlerts={mockActiveAlerts}
+                onCreateAlert={handleCreateAlert}
+                onUpdateAlert={handleUpdateAlert}
+                onDeleteAlert={handleDeleteAlert}
+            />
         </Card>
     );
 }
